@@ -44,6 +44,8 @@ class PowerShellConfig:
                 r"[;&|`]",  # Command separators and pipes
                 r"Invoke-Expression",
                 r"Invoke-Command",
+                r"Invoke-WebRequest",
+                r"Invoke-RestMethod",
                 r"iex\s",
                 r"icm\s",
                 r"Start-Process",
