@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Run the Python runner script with all arguments passed through
-python3 run_server.py "$@"
+python3 run_execboxmcp.py "$@"
 
 # Exit with the same code as the Python script
 exit $?

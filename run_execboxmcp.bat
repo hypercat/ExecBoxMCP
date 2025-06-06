@@ -11,7 +11,7 @@ REM Change to the script directory
 cd /d "%SCRIPT_DIR%"
 
 REM Run the Python runner script with all arguments passed through
-python run_server.py %*
+python run_execboxmcp.py %*
 
 REM Exit with the same code as the Python script
 exit /b %ERRORLEVEL%
