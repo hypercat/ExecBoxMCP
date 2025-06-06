@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Test MCP server via stdio transport (simulating what fast-agent does).
+Test script that mimics how fast-agent would connect to our MCP server.
+This can be used to debug connection issues.
 """
 
 import asyncio
@@ -10,118 +11,113 @@ import sys
 import traceback
 from pathlib import Path
 
-async def test_stdio_mcp():
-    """Test the MCP server via stdio transport."""
+async def test_fast_agent_connection():
+    """Test connection like fast-agent would."""
     try:
-        print("Testing MCP server via stdio transport...")
+        print("Testing fast-agent style connection...")
         
-        # Get the path to our main script
+        # Get the path to our runner script
         script_dir = Path(__file__).parent
-        main_script = script_dir / "src" / "main.py"
+        runner_script = script_dir / "run_server.py"
         
-        print(f"Starting server: python {main_script}")
+        print(f"Starting server via runner: python {runner_script}")
         
-        # Start the server process
+        # Start the server process using our runner
         process = await asyncio.create_subprocess_exec(
-            sys.executable, str(main_script),
+            sys.executable, str(runner_script),
             "--config", "config.json",
-            "--log-level", "DEBUG",
+            "--log-level", "INFO",
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=script_dir
         )
         
-        print("Server process started, sending initialize message...")
+        print("Server process started via runner...")
         
-        # Send initialize message (what fast-agent would send)
+        # Send initialize message
         init_message = {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "initialize",
             "params": {
                 "protocolVersion": "2025-03-26",
-                "capabilities": {},
+                "capabilities": {
+                    "experimental": {},
+                    "sampling": {},
+                    "roots": None
+                },
                 "clientInfo": {
-                    "name": "test-client",
-                    "version": "1.0.0"
+                    "name": "fast-agent-mcp",
+                    "version": "0.2.28"
                 }
             }
         }
         
         # Send the message
         message_str = json.dumps(init_message) + "\n"
-        print(f"Sending: {message_str.strip()}")
+        print(f"Sending initialize: {message_str.strip()}")
         
         process.stdin.write(message_str.encode())
         await process.stdin.drain()
         
-        # Wait for response with timeout
+        # Wait for response
         try:
             stdout_data = await asyncio.wait_for(
                 process.stdout.readline(),
-                timeout=10.0
+                timeout=15.0
             )
             
             if stdout_data:
                 response = stdout_data.decode().strip()
                 print(f"Received: {response}")
                 
-                # Try to parse as JSON
                 try:
                     response_json = json.loads(response)
-                    print(f"Parsed response: {response_json}")
+                    print(f"Initialize successful: {response_json}")
                     
-                    # Test a tool call
-                    print("Testing tool call...")
-                    tool_call_message = {
+                    # Send tools/list request
+                    tools_message = {
                         "jsonrpc": "2.0",
                         "id": 2,
-                        "method": "tools/call",
-                        "params": {
-                            "name": "validate_command",
-                            "arguments": {
-                                "command": "Get-Date"
-                            }
-                        }
+                        "method": "tools/list",
+                        "params": {}
                     }
                     
-                    tool_message_str = json.dumps(tool_call_message) + "\n"
-                    print(f"Sending tool call: {tool_message_str.strip()}")
+                    tools_str = json.dumps(tools_message) + "\n"
+                    print(f"Sending tools/list: {tools_str.strip()}")
                     
-                    process.stdin.write(tool_message_str.encode())
+                    process.stdin.write(tools_str.encode())
                     await process.stdin.drain()
                     
-                    # Wait for tool response
-                    tool_stdout_data = await asyncio.wait_for(
+                    # Wait for tools response
+                    tools_data = await asyncio.wait_for(
                         process.stdout.readline(),
                         timeout=10.0
                     )
                     
-                    if tool_stdout_data:
-                        tool_response = tool_stdout_data.decode().strip()
-                        print(f"Tool response: {tool_response}")
+                    if tools_data:
+                        tools_response = tools_data.decode().strip()
+                        print(f"Tools response: {tools_response}")
                         
                         try:
-                            tool_response_json = json.loads(tool_response)
-                            print(f"Parsed tool response: {tool_response_json}")
-                            print("+ stdio MCP test with tool call passed!")
+                            tools_json = json.loads(tools_response)
+                            print(f"Tools available: {len(tools_json.get('result', {}).get('tools', []))}")
+                            print("+ Fast-agent style connection test passed!")
                             return True
                         except json.JSONDecodeError as e:
-                            print(f"- Tool response is not valid JSON: {e}")
+                            print(f"- Tools response not valid JSON: {e}")
                     else:
-                        print("- No tool response received")
+                        print("- No tools response received")
                     
-                    print("+ stdio MCP test passed!")
-                    return True
                 except json.JSONDecodeError as e:
-                    print(f"- Response is not valid JSON: {e}")
+                    print(f"- Initialize response not valid JSON: {e}")
                     print(f"Raw response: {repr(response)}")
             else:
-                print("- No response received")
+                print("- No initialize response received")
                 
         except asyncio.TimeoutError:
-            print("- Timeout waiting for response")
+            print("- Timeout waiting for initialize response")
             
         # Check if process is still running
         if process.returncode is None:
@@ -146,10 +142,10 @@ async def test_stdio_mcp():
         return False
         
     except Exception as e:
-        print(f"- stdio MCP test failed: {str(e)}")
+        print(f"- Fast-agent connection test failed: {str(e)}")
         print(f"Traceback:\n{traceback.format_exc()}")
         return False
 
 if __name__ == "__main__":
-    success = asyncio.run(test_stdio_mcp())
+    success = asyncio.run(test_fast_agent_connection())
     sys.exit(0 if success else 1)
