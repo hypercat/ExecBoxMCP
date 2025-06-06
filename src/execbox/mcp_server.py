@@ -321,15 +321,17 @@ class PowerShellExecutor:
             
             # Prepare PowerShell command
             # Use Bypass for external commands but still prevent script execution via our validation
+            # Also refresh the environment to ensure PATH is current
             ps_command = [
                 "powershell.exe",
                 "-NoProfile",
                 "-NonInteractive",
                 "-ExecutionPolicy", "Bypass",  # Allow external commands to run
-                "-Command", command
+                "-Command", f"$env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('PATH', 'User'); {command}"
             ]
             
             logger.debug(f"Executing PowerShell with args: {ps_command}")
+            logger.debug(f"Current PATH: {os.environ.get('PATH', 'NOT_SET')}")
             
             # Execute command with timeout
             # Ensure environment variables (including PATH) are inherited
