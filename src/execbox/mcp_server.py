@@ -7,11 +7,50 @@ with configurable security controls.
 
 import asyncio
 import json
+import logging
+import logging.handlers
 import os
 import re
+import traceback
 from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
+
+# Set up logging with rotation
+def setup_logging():
+    """Set up logging with file rotation."""
+    logger = logging.getLogger("execbox")
+    logger.setLevel(logging.INFO)
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs("logs", exist_ok=True)
+    
+    # File handler with rotation (1MB max, keep 5 files)
+    file_handler = logging.handlers.RotatingFileHandler(
+        "logs/execbox.log",
+        maxBytes=1024*1024,  # 1MB
+        backupCount=5
+    )
+    file_handler.setLevel(logging.INFO)
+    
+    # Console handler for immediate feedback
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    
+    # Formatter
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+# Initialize logging
+logger = setup_logging()
 
 mcp = FastMCP("ExecBoxMCP")
 
@@ -28,6 +67,7 @@ class PowerShellConfig:
         Returns:
             The loaded configuration dictionary
         """
+        logger.info(f"Loading configuration from {self.config_path}")
         default_config = {
             "allowed_commands": [
                 "Get-ChildItem", "Get-Item", "Get-Content", "Get-Location",
@@ -71,10 +111,14 @@ class PowerShellConfig:
                     loaded_config = json.load(f)
                     # Merge with defaults
                     default_config.update(loaded_config)
+                logger.info(f"Successfully loaded configuration from {self.config_path}")
             except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Could not load config file {self.config_path}: {e}")
+                logger.warning("Using default configuration.")
                 print(f"Warning: Could not load config file {self.config_path}: {e}")
                 print("Using default configuration.")
         else:
+            logger.info(f"Config file {self.config_path} not found, creating default configuration")
             # Create default config file
             self._save_config(default_config)
         
@@ -89,7 +133,9 @@ class PowerShellConfig:
         try:
             with open(self.config_path, 'w') as f:
                 json.dump(config, f, indent=2)
+            logger.info(f"Configuration saved to {self.config_path}")
         except IOError as e:
+            logger.error(f"Could not save config file: {e}")
             print(f"Warning: Could not save config file: {e}")
     
     def is_command_allowed(self, command: str) -> tuple[bool, str]:
@@ -101,19 +147,28 @@ class PowerShellConfig:
         Returns:
             Tuple containing (is_allowed, reason)
         """
+        logger.debug(f"Validating command: {command}")
+        
         if len(command) > self.config["max_command_length"]:
-            return False, f"Command exceeds maximum length of {self.config['max_command_length']} characters"
+            reason = f"Command exceeds maximum length of {self.config['max_command_length']} characters"
+            logger.warning(f"Command blocked: {reason}")
+            return False, reason
         
         for pattern in self.config["blocked_patterns"]:
             if re.search(pattern, command, re.IGNORECASE):
-                return False, f"Command contains blocked pattern: {pattern}"
+                reason = f"Command contains blocked pattern: {pattern}"
+                logger.warning(f"Command blocked: {reason}")
+                return False, reason
         
         primary_command = command.strip().split()[0] if command.strip() else ""
         
         allowed_commands = [cmd.lower() for cmd in self.config["allowed_commands"]]
         if primary_command.lower() not in allowed_commands:
-            return False, f"Command '{primary_command}' is not in the allowed commands list"
+            reason = f"Command '{primary_command}' is not in the allowed commands list"
+            logger.warning(f"Command blocked: {reason}")
+            return False, reason
         
+        logger.debug(f"Command allowed: {command}")
         return True, "Command is allowed"
     
     def is_directory_allowed(self, directory: str) -> bool:
@@ -141,45 +196,54 @@ class PowerShellExecutor:
     
     async def execute_command(self, command: str, working_directory: Optional[str] = None) -> Dict[str, Any]:
         """Execute a PowerShell command with security restrictions."""
+        logger.info(f"Executing command: {command} (working_directory: {working_directory})")
         
-        # Validate command
-        is_allowed, reason = self.config.is_command_allowed(command)
-        if not is_allowed:
-            return {
-                "success": False,
-                "error": f"Command blocked: {reason}",
-                "stdout": "",
-                "stderr": ""
-            }
-        
-        # Validate working directory
-        if working_directory:
-            if not os.path.exists(working_directory):
+        try:
+            # Validate command
+            is_allowed, reason = self.config.is_command_allowed(command)
+            if not is_allowed:
+                error_msg = f"Command blocked: {reason}"
+                logger.warning(error_msg)
                 return {
                     "success": False,
-                    "error": f"Directory does not exist: {working_directory}",
+                    "error": error_msg,
                     "stdout": "",
                     "stderr": ""
                 }
             
-            if not self.config.is_directory_allowed(working_directory):
-                return {
-                    "success": False,
-                    "error": f"Directory not allowed: {working_directory}",
-                    "stdout": "",
-                    "stderr": ""
-                }
-        
-        # Prepare PowerShell command
-        ps_command = [
-            "powershell.exe",
-            "-NoProfile",
-            "-NonInteractive",
-            "-ExecutionPolicy", "Restricted",  # Prevent script execution
-            "-Command", command
-        ]
-        
-        try:
+            # Validate working directory
+            if working_directory:
+                if not os.path.exists(working_directory):
+                    error_msg = f"Directory does not exist: {working_directory}"
+                    logger.warning(error_msg)
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "stdout": "",
+                        "stderr": ""
+                    }
+                
+                if not self.config.is_directory_allowed(working_directory):
+                    error_msg = f"Directory not allowed: {working_directory}"
+                    logger.warning(error_msg)
+                    return {
+                        "success": False,
+                        "error": error_msg,
+                        "stdout": "",
+                        "stderr": ""
+                    }
+            
+            # Prepare PowerShell command
+            ps_command = [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Restricted",  # Prevent script execution
+                "-Command", command
+            ]
+            
+            logger.debug(f"Executing PowerShell with args: {ps_command}")
+            
             # Execute command with timeout
             process = await asyncio.create_subprocess_exec(
                 *ps_command,
@@ -193,26 +257,43 @@ class PowerShellExecutor:
                 timeout=self.config.config["timeout_seconds"]
             )
             
-            return {
+            stdout_str = stdout.decode('utf-8', errors='replace').strip()
+            stderr_str = stderr.decode('utf-8', errors='replace').strip()
+            
+            result = {
                 "success": process.returncode == 0,
                 "return_code": process.returncode,
-                "stdout": stdout.decode('utf-8', errors='replace').strip(),
-                "stderr": stderr.decode('utf-8', errors='replace').strip(),
+                "stdout": stdout_str,
+                "stderr": stderr_str,
                 "command": command,
                 "working_directory": working_directory
             }
             
+            if process.returncode == 0:
+                logger.info(f"Command executed successfully: {command}")
+            else:
+                logger.warning(f"Command failed with return code {process.returncode}: {command}")
+                if stderr_str:
+                    logger.warning(f"Command stderr: {stderr_str}")
+            
+            return result
+            
         except asyncio.TimeoutError:
+            error_msg = f"Command timed out after {self.config.config['timeout_seconds']} seconds"
+            logger.error(f"{error_msg}: {command}")
             return {
                 "success": False,
-                "error": f"Command timed out after {self.config.config['timeout_seconds']} seconds",
+                "error": error_msg,
                 "stdout": "",
                 "stderr": ""
             }
         except Exception as e:
+            error_msg = f"Execution error: {str(e)}"
+            logger.error(f"{error_msg}: {command}")
+            logger.error(f"Exception traceback: {traceback.format_exc()}")
             return {
                 "success": False,
-                "error": f"Execution error: {str(e)}",
+                "error": error_msg,
                 "stdout": "",
                 "stderr": ""
             }
@@ -298,7 +379,21 @@ async def execute_powershell(command: str, working_directory: Optional[str] = No
     Returns:
         Dictionary containing execution results and metadata
     """
-    return await execute_powershell_command(command, working_directory)
+    try:
+        logger.info(f"MCP tool execute_powershell called with command: {command}")
+        result = await execute_powershell_command(command, working_directory)
+        logger.debug(f"MCP tool execute_powershell result: {result}")
+        return result
+    except Exception as e:
+        error_msg = f"MCP tool execute_powershell failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        return {
+            "success": False,
+            "error": error_msg,
+            "stdout": "",
+            "stderr": ""
+        }
 
 @mcp.tool()
 async def list_allowed_commands() -> List[str]:
@@ -308,7 +403,16 @@ async def list_allowed_commands() -> List[str]:
     Returns:
         List of allowed command names
     """
-    return await get_allowed_commands()
+    try:
+        logger.debug("MCP tool list_allowed_commands called")
+        result = await get_allowed_commands()
+        logger.debug(f"MCP tool list_allowed_commands result: {len(result)} commands")
+        return result
+    except Exception as e:
+        error_msg = f"MCP tool list_allowed_commands failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise
 
 @mcp.tool()
 async def list_allowed_directories() -> List[str]:
@@ -318,7 +422,16 @@ async def list_allowed_directories() -> List[str]:
     Returns:
         List of allowed directory paths
     """
-    return await get_allowed_directories()
+    try:
+        logger.debug("MCP tool list_allowed_directories called")
+        result = await get_allowed_directories()
+        logger.debug(f"MCP tool list_allowed_directories result: {len(result)} directories")
+        return result
+    except Exception as e:
+        error_msg = f"MCP tool list_allowed_directories failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise
 
 @mcp.tool()
 async def get_security_config() -> Dict[str, Any]:
@@ -328,7 +441,16 @@ async def get_security_config() -> Dict[str, Any]:
     Returns:
         Current security configuration settings
     """
-    return await get_current_security_config()
+    try:
+        logger.debug("MCP tool get_security_config called")
+        result = await get_current_security_config()
+        logger.debug(f"MCP tool get_security_config result: {result}")
+        return result
+    except Exception as e:
+        error_msg = f"MCP tool get_security_config failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise
 
 @mcp.tool()
 async def validate_command(command: str) -> Dict[str, Any]:
@@ -341,7 +463,16 @@ async def validate_command(command: str) -> Dict[str, Any]:
     Returns:
         Validation result with details
     """
-    return await validate_powershell_command(command)
+    try:
+        logger.debug(f"MCP tool validate_command called with command: {command}")
+        result = await validate_powershell_command(command)
+        logger.debug(f"MCP tool validate_command result: {result}")
+        return result
+    except Exception as e:
+        error_msg = f"MCP tool validate_command failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise
 
 def create_mcp_server(config_path: str = "config.json") -> FastMCP:
     """
@@ -355,7 +486,13 @@ def create_mcp_server(config_path: str = "config.json") -> FastMCP:
     """
     global config, executor
     
-    config = PowerShellConfig(config_path)
-    executor = PowerShellExecutor(config)
-    
-    return mcp
+    try:
+        logger.info(f"Creating MCP server with config: {config_path}")
+        config = PowerShellConfig(config_path)
+        executor = PowerShellExecutor(config)
+        logger.info("MCP server created successfully")
+        return mcp
+    except Exception as e:
+        logger.error(f"Failed to create MCP server: {str(e)}")
+        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        raise
