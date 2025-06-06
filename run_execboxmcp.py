@@ -59,9 +59,9 @@ def main():
     # Find uv executable
     try:
         uv_executable = find_uv_executable()
-        print(f"Using uv executable: {uv_executable}")
+        print(f"Using uv executable: {uv_executable}", file=sys.stderr)
     except RuntimeError as e:
-        print(f"Error: {e}")
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     
     # Build the command to run the server with uv
@@ -74,8 +74,8 @@ def main():
         "--log-level", args.log_level
     ]
     
-    print(f"Running command: {' '.join(cmd)}")
-    print(f"Working directory: {script_dir}")
+    print(f"Running command: {' '.join(cmd)}", file=sys.stderr)
+    print(f"Working directory: {script_dir}", file=sys.stderr)
     
     # Change to the script directory to ensure relative paths work
     original_cwd = os.getcwd()
@@ -86,10 +86,10 @@ def main():
         result = subprocess.run(cmd, cwd=script_dir)
         sys.exit(result.returncode)
     except KeyboardInterrupt:
-        print("\nServer stopped by user")
+        print("\nServer stopped by user", file=sys.stderr)
         sys.exit(0)
     except Exception as e:
-        print(f"Error running server: {e}")
+        print(f"Error running server: {e}", file=sys.stderr)
         sys.exit(1)
     finally:
         # Restore original working directory
