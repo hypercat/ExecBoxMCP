@@ -18,7 +18,7 @@ async def test_fast_agent_connection():
         
         # Get the path to our runner script
         script_dir = Path(__file__).parent
-        runner_script = script_dir / "run_server.py"
+        runner_script = script_dir / "run_execboxmcp.py"
         
         print(f"Starting server via runner: python {runner_script}")
         
