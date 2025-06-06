@@ -23,88 +23,38 @@ ExecBoxMCP is designed to safely execute PowerShell commands in controlled envir
 
 ## Installation
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management. The dependencies are locked in `uv.lock` for reproducible builds.
+1. Clone this repository
+2. Install dependencies:
+   ```bash
+   uv sync
+   ```
+
+### Installation with Development Dependencies
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd ExecBoxMCP
-
-# Install uv if you haven't already
-pip install uv
-
-# Install the package and dependencies
-uv sync
-
-# Or install with development dependencies
+# Install with development dependencies for testing
 uv sync --extra dev
-```
 
-**Alternative installation with pip:**
-```bash
-# If you prefer to use pip instead of uv
-pip install -e .
-
-# Or install with development dependencies
+# Or with pip
 pip install -e ".[dev]"
 ```
 
-## Quick Start
-
-1. **Run with default configuration:**
-   ```bash
-   python src/main.py
-   ```
-
-2. **Run with custom configuration:**
-   ```bash
-   python src/main.py --config my-config.json
-   ```
-
-3. **Get help:**
-   ```bash
-   python src/main.py --help
-   ```
-
 ## Configuration
 
-ExecBoxMCP uses a JSON configuration file to define security policies. If no config file exists, a default one will be created.
-
-### Default Configuration
+Edit `config.json` to customize security settings:
 
 ```json
 {
   "allowed_commands": [
-    "Get-ChildItem", "Get-Item", "Get-Content", "Get-Location",
-    "Set-Location", "Test-Path", "Get-Process", "Get-Service",
-    "Get-Date", "Get-Host", "Write-Output", "Write-Host",
-    "Select-Object", "Where-Object", "Sort-Object", "Measure-Object"
+    "Get-ChildItem", "Get-Date", "git", "cargo", "npm", "python"
   ],
   "allowed_directories": [
     "C:\\Users\\Public",
-    "C:\\temp",
-    "C:\\Windows\\System32"
+    "C:\\Projects\\*",
+    "D:\\Development\\*"
   ],
   "blocked_patterns": [
-    "[;&|`]",
-    "Invoke-Expression",
-    "Invoke-Command",
-    "Invoke-WebRequest",
-    "Invoke-RestMethod",
-    "iex\\s",
-    "icm\\s",
-    "Start-Process",
-    "sps\\s",
-    "Remove-Item",
-    "rm\\s",
-    "del\\s",
-    "rmdir\\s",
-    "\\.ps1",
-    "\\.bat",
-    "\\.cmd",
-    "\\.exe",
-    "powershell\\.exe",
-    "cmd\\.exe"
+    "[;&|`]", "Invoke-Expression", "\\.ps1"
   ],
   "max_command_length": 200,
   "timeout_seconds": 30
@@ -113,91 +63,94 @@ ExecBoxMCP uses a JSON configuration file to define security policies. If no con
 
 ### Configuration Options
 
-- **`allowed_commands`**: List of PowerShell cmdlets that are permitted
-- **`allowed_directories`**: List of directories where commands can be executed
-- **`blocked_patterns`**: Regular expressions for dangerous patterns to block
-- **`max_command_length`**: Maximum length of commands in characters
-- **`timeout_seconds`**: Maximum execution time before commands are terminated
+- **allowed_commands**: List of permitted commands (supports both PowerShell cmdlets and external tools)
+- **allowed_directories**: Permitted working directories (supports wildcards with `*`)
+- **blocked_patterns**: Regex patterns that will block command execution
+- **max_command_length**: Maximum length of commands in characters
+- **timeout_seconds**: Maximum execution time for commands
 
-## MCP Tools
+## Usage
 
-ExecBoxMCP provides the following MCP tools:
+### Direct Execution
 
-### `execute_powershell`
-Execute a PowerShell command with security restrictions.
+Run the server directly:
 
-**Parameters:**
-- `command` (string): The PowerShell command to execute
-- `working_directory` (string, optional): Working directory for execution
+```bash
+python src/main.py --config config.json
+```
 
-**Returns:**
-- `success` (boolean): Whether the command executed successfully
-- `return_code` (integer): PowerShell exit code
-- `stdout` (string): Standard output from the command
-- `stderr` (string): Standard error from the command
-- `command` (string): The executed command
-- `working_directory` (string): The working directory used
+Options:
+- `--config, -c`: Path to configuration file (default: config.json)
+- `--log-level`: Set logging level (DEBUG, INFO, WARNING, ERROR)
+- `--enable-file-logging`: Enable logging to file with rotation
 
-### `validate_command`
-Validate a PowerShell command without executing it.
+### MCP Client Integration
 
-**Parameters:**
-- `command` (string): The PowerShell command to validate
+For use with MCP clients like fast-agent, use the direct runner script:
 
-**Returns:**
-- `is_allowed` (boolean): Whether the command would be allowed
-- `reason` (string): Explanation of the validation result
-- `command` (string): The validated command
+```bash
+python run_execboxmcp_direct.py --config config.json
+```
 
-### `list_allowed_commands`
-Get the list of allowed PowerShell commands.
+The `run_execboxmcp_direct.py` script is specifically designed for MCP client compatibility. It:
+- Runs the server directly without uv wrapper complexity
+- Properly handles stdio communication required by MCP protocol
+- Sets up Python paths correctly for module imports
+- Avoids environment isolation issues that can occur with uv-based execution
 
-**Returns:**
-- Array of allowed command names
+### Fast-Agent Configuration
 
-### `list_allowed_directories`
-Get the list of allowed working directories.
+Add to your `fastagent.config.yaml`:
 
-**Returns:**
-- Array of allowed directory paths
+```yaml
+mcp:
+  servers:
+    execboxmcp:
+      command: "python"
+      args: ["path/to/execboxmcp/run_execboxmcp_direct.py", "--config", "path/to/config.json"]
+```
 
-### `get_security_config`
-Get the current security configuration summary.
+## Available MCP Tools
 
-**Returns:**
-- `allowed_commands_count` (integer): Number of allowed commands
-- `allowed_directories_count` (integer): Number of allowed directories
-- `blocked_patterns_count` (integer): Number of blocked patterns
-- `max_command_length` (integer): Maximum command length
-- `timeout_seconds` (integer): Command timeout in seconds
+The server provides these MCP tools:
 
-## Security Features
+1. **execute_powershell**: Execute a PowerShell command with security restrictions
+2. **list_allowed_commands**: Get the list of allowed commands
+3. **list_allowed_directories**: Get the list of allowed directories
+4. **get_security_config**: Get current security configuration
+5. **validate_command**: Validate a command without executing it
 
-### Command Validation
-- Only whitelisted PowerShell cmdlets are allowed
-- Commands are checked against blocked patterns using regular expressions
-- Command length is limited to prevent abuse
-- Case-insensitive validation
+## Examples
 
-### Directory Restrictions
-- Commands can only be executed in pre-approved directories
-- Path traversal attempts are blocked
-- Absolute path resolution prevents bypass attempts
+### Basic Commands
+```powershell
+Get-Date
+Get-ChildItem C:\Users\Public
+```
 
-### Execution Safety
-- PowerShell runs with `-ExecutionPolicy Restricted` to prevent script execution
-- Commands run with `-NoProfile` and `-NonInteractive` flags
-- Automatic timeout prevents long-running or hanging commands
-- Subprocess isolation limits system access
+### External Tools (when configured)
+```bash
+git status
+git log --oneline -10
+cargo build --release
+npm install
+python --version
+```
 
-### Pattern Blocking
-The default configuration blocks:
-- Command chaining (`;&|` characters)
-- Script execution (`Invoke-Expression`, `.ps1` files)
-- Network operations (`Invoke-WebRequest`, `Invoke-RestMethod`)
-- File deletion operations (`Remove-Item`, `del`, `rm`)
-- Process execution (`Start-Process`)
-- Executable files (`.exe`, `.bat`, `.cmd`)
+### Directory Operations
+```powershell
+Set-Location C:\Users\Public
+Get-ChildItem | Where-Object {$_.Name -like "*.txt"}
+```
+
+## Security Considerations
+
+- Commands are executed with PowerShell's restricted execution policy
+- All command arguments are validated against security patterns
+- Working directories must be explicitly allowed
+- Command chaining and piping are blocked by default
+- Script file execution (.ps1, .bat, .cmd) is prevented
+- Dangerous cmdlets like `Invoke-Expression` are blocked
 
 ## Development
 
@@ -223,6 +176,7 @@ ExecBoxMCP/
 │       └── mcp_server.py       # Core MCP server and security logic
 ├── tests/
 │   └── test_execboxmcp.py      # Comprehensive test suite
+├── run_execboxmcp_direct.py    # Direct runner for MCP clients
 ├── config.json                 # Default configuration file
 ├── pyproject.toml              # Project metadata and dependencies
 ├── uv.lock                     # Locked dependency versions
@@ -234,12 +188,12 @@ ExecBoxMCP/
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass
+4. Ensure all tests pass with `python -m pytest tests/ -v`
 5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Security Considerations
 
@@ -247,7 +201,7 @@ ExecBoxMCP is designed for controlled environments and should be used with cauti
 
 - Review and customize the configuration for your specific use case
 - Regularly audit allowed commands and directories
-- Monitor command execution logs
+- Monitor command execution logs (enable with `--enable-file-logging`)
 - Keep the allowed command list minimal
 - Test security configurations thoroughly before deployment
 
