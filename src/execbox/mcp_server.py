@@ -20,12 +20,17 @@ from fastmcp import FastMCP
 # Set up logging with rotation
 def setup_logging():
     """Set up logging with file rotation."""
+    # Check if we're in stdio mode to suppress debug prints
+    _is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
+    
     try:
-        print("Setting up logging system...")
+        if not _is_stdio_mode:
+            print("Setting up logging system...")
         
         # Create logs directory if it doesn't exist
         os.makedirs("logs", exist_ok=True)
-        print("+ Logs directory created/verified")
+        if not _is_stdio_mode:
+            print("+ Logs directory created/verified")
         
         logger = logging.getLogger("execbox")
         
@@ -41,12 +46,14 @@ def setup_logging():
             backupCount=5
         )
         file_handler.setLevel(logging.INFO)
-        print("+ File handler created")
+        if not _is_stdio_mode:
+            print("+ File handler created")
         
         # Console handler for immediate feedback (lower threshold for debugging)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        print("+ Console handler created")
+        if not _is_stdio_mode:
+            print("+ Console handler created")
         
         # Formatter
         formatter = logging.Formatter(
@@ -54,21 +61,25 @@ def setup_logging():
         )
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
-        print("+ Formatters applied")
+        if not _is_stdio_mode:
+            print("+ Formatters applied")
         
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
-        print("+ Handlers added to logger")
+        if not _is_stdio_mode:
+            print("+ Handlers added to logger")
         
         # Test log to ensure it's working
         logger.info("Logging system initialized successfully")
-        print("+ Test log written successfully")
+        if not _is_stdio_mode:
+            print("+ Test log written successfully")
         
         return logger
     except Exception as e:
         # Fallback to basic logging if setup fails
-        print(f"Warning: Failed to setup logging: {e}")
-        print(f"Logging setup traceback: {traceback.format_exc()}")
+        if not _is_stdio_mode:
+            print(f"Warning: Failed to setup logging: {e}")
+            print(f"Logging setup traceback: {traceback.format_exc()}")
         basic_logger = logging.getLogger("execbox")
         basic_logger.setLevel(logging.INFO)
         handler = logging.StreamHandler()
@@ -77,14 +88,21 @@ def setup_logging():
         return basic_logger
 
 # Initialize logging early
-# Note: These prints will be redirected to stderr in stdio mode by main.py
-print("Initializing logging system...")
-logger = setup_logging()
-print("+ Logging system ready")
+# Note: We'll suppress these prints in stdio mode
+import sys
+_is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
 
-print("Creating FastMCP instance...")
+if not _is_stdio_mode:
+    print("Initializing logging system...")
+logger = setup_logging()
+if not _is_stdio_mode:
+    print("+ Logging system ready")
+
+if not _is_stdio_mode:
+    print("Creating FastMCP instance...")
 mcp = FastMCP("ExecBoxMCP")
-print("+ FastMCP instance created")
+if not _is_stdio_mode:
+    print("+ FastMCP instance created")
 
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
