@@ -2,15 +2,39 @@ import argparse
 import logging
 import sys
 import traceback
-from execbox.mcp_server import create_mcp_server
+import os
 
 def main():
     # Print startup info immediately for debugging
     print("ExecBox MCP Server starting...")
     print(f"Python executable: {sys.executable}")
-    print(f"Working directory: {sys.path[0] if sys.path else 'unknown'}")
+    print(f"Working directory: {os.getcwd()}")
+    print(f"Python path: {sys.path}")
+    
+    # Test imports early
+    try:
+        print("Testing imports...")
+        import asyncio
+        print("✓ asyncio imported")
+        
+        import json
+        print("✓ json imported")
+        
+        from fastmcp import FastMCP
+        print("✓ fastmcp imported")
+        
+        print("✓ All basic imports successful")
+        
+    except Exception as e:
+        print(f"FATAL: Import error during startup: {str(e)}")
+        print(f"Traceback:\n{traceback.format_exc()}")
+        sys.exit(1)
     
     try:
+        # Import our module after basic imports are verified
+        from execbox.mcp_server import create_mcp_server
+        print("✓ execbox.mcp_server imported")
+        
         parser = argparse.ArgumentParser(description="ExecBox MCP Server - Secure PowerShell command execution")
         parser.add_argument(
             "--config", 
@@ -42,13 +66,21 @@ def main():
         
         logger.info("MCP Server starting...")
         print("Starting MCP server...")
+        print("About to call mcp.run()...")
+        
+        # Flush output before starting the server
+        sys.stdout.flush()
+        sys.stderr.flush()
         
         mcp.run()
         
     except KeyboardInterrupt:
         print("MCP Server stopped by user (KeyboardInterrupt)")
-        logger = logging.getLogger("execbox")
-        logger.info("MCP Server stopped by user")
+        try:
+            logger = logging.getLogger("execbox")
+            logger.info("MCP Server stopped by user")
+        except:
+            pass
         sys.exit(0)
     except Exception as e:
         print(f"FATAL ERROR: Failed to start MCP Server: {str(e)}")

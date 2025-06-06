@@ -20,8 +20,11 @@ from fastmcp import FastMCP
 def setup_logging():
     """Set up logging with file rotation."""
     try:
+        print("Setting up logging system...")
+        
         # Create logs directory if it doesn't exist
         os.makedirs("logs", exist_ok=True)
+        print("✓ Logs directory created/verified")
         
         logger = logging.getLogger("execbox")
         
@@ -37,10 +40,12 @@ def setup_logging():
             backupCount=5
         )
         file_handler.setLevel(logging.INFO)
+        print("✓ File handler created")
         
         # Console handler for immediate feedback (lower threshold for debugging)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
+        print("✓ Console handler created")
         
         # Formatter
         formatter = logging.Formatter(
@@ -48,17 +53,21 @@ def setup_logging():
         )
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
+        print("✓ Formatters applied")
         
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
+        print("✓ Handlers added to logger")
         
         # Test log to ensure it's working
         logger.info("Logging system initialized successfully")
+        print("✓ Test log written successfully")
         
         return logger
     except Exception as e:
         # Fallback to basic logging if setup fails
         print(f"Warning: Failed to setup logging: {e}")
+        print(f"Logging setup traceback: {traceback.format_exc()}")
         basic_logger = logging.getLogger("execbox")
         basic_logger.setLevel(logging.INFO)
         handler = logging.StreamHandler()
@@ -67,9 +76,13 @@ def setup_logging():
         return basic_logger
 
 # Initialize logging early
+print("Initializing logging system...")
 logger = setup_logging()
+print("✓ Logging system ready")
 
+print("Creating FastMCP instance...")
 mcp = FastMCP("ExecBoxMCP")
+print("✓ FastMCP instance created")
 
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
@@ -514,6 +527,11 @@ def create_mcp_server(config_path: str = "config.json") -> FastMCP:
         
         executor = PowerShellExecutor(config)
         print("PowerShellExecutor created successfully")
+        
+        # Verify that all tools are properly registered
+        print("Verifying MCP tools registration...")
+        tools = mcp.list_tools()
+        print(f"Registered tools: {[tool.name for tool in tools]}")
         
         logger.info("MCP server created successfully")
         print("Returning FastMCP instance")
