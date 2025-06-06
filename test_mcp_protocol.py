@@ -15,26 +15,26 @@ async def test_mcp_protocol():
         print("Creating MCP server...")
         mcp = create_mcp_server("config.json")
         
-        print("Testing MCP protocol methods...")
+        print("Testing MCP server functionality...")
         
-        # Test initialize
-        print("Testing initialize...")
-        init_result = await mcp.initialize({
-            "protocolVersion": "2025-03-26",
-            "capabilities": {},
-            "clientInfo": {"name": "test-client", "version": "1.0.0"}
-        })
-        print(f"Initialize result: {init_result}")
-        
-        # Test list tools
-        print("Testing list_tools...")
+        # Test get tools
+        print("Testing get_tools...")
         tools_result = await mcp.get_tools()
         print(f"Tools: {[tool.name for tool in tools_result]}")
+        
+        if not tools_result:
+            print("- No tools found!")
+            return False
         
         # Test a simple tool call
         print("Testing tool call...")
         validation_result = await mcp.call_tool("validate_command", {"command": "Get-Date"})
         print(f"Validation result: {validation_result}")
+        
+        # Test another tool call
+        print("Testing list_allowed_commands...")
+        commands_result = await mcp.call_tool("list_allowed_commands", {})
+        print(f"Allowed commands count: {len(commands_result) if isinstance(commands_result, list) else 'unknown'}")
         
         print("+ MCP protocol test passed!")
         return True

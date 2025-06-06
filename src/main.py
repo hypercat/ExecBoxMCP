@@ -75,7 +75,22 @@ def main():
         # Add some MCP-specific debugging
         print("MCP server info:")
         print(f"  Server name: {mcp.name}")
-        print(f"  Available tools: {len(mcp.get_tools()) if hasattr(mcp, 'get_tools') else 'unknown'}")
+        
+        # Test tools availability asynchronously
+        async def test_tools():
+            try:
+                tools = await mcp.get_tools()
+                print(f"  Available tools: {len(tools)} - {[tool.name for tool in tools]}")
+                return True
+            except Exception as e:
+                print(f"  Error getting tools: {e}")
+                return False
+        
+        # Run the async test
+        tools_ok = asyncio.run(test_tools())
+        if not tools_ok:
+            print("ERROR: Tools are not accessible!")
+            sys.exit(1)
         
         # Check if we're running in stdio mode (which is what MCP clients expect)
         if hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty():
@@ -84,7 +99,14 @@ def main():
             print("Running in interactive mode")
         
         print("Starting MCP server run loop...")
-        mcp.run()
+        
+        # Add error handling around mcp.run()
+        try:
+            mcp.run()
+        except Exception as run_error:
+            print(f"ERROR in mcp.run(): {run_error}")
+            print(f"Run error traceback: {traceback.format_exc()}")
+            raise
         
     except KeyboardInterrupt:
         print("MCP Server stopped by user (KeyboardInterrupt)")
