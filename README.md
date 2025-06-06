@@ -23,12 +23,26 @@ ExecBoxMCP is designed to safely execute PowerShell commands in controlled envir
 
 ## Installation
 
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management. The dependencies are locked in `uv.lock` for reproducible builds.
+
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd ExecBoxMCP
 
+# Install uv if you haven't already
+pip install uv
+
 # Install the package and dependencies
+uv sync
+
+# Or install with development dependencies
+uv sync --extra dev
+```
+
+**Alternative installation with pip:**
+```bash
+# If you prefer to use pip instead of uv
 pip install -e .
 
 # Or install with development dependencies
@@ -211,6 +225,7 @@ ExecBoxMCP/
 │   └── test_execboxmcp.py      # Comprehensive test suite
 ├── config.json                 # Default configuration file
 ├── pyproject.toml              # Project metadata and dependencies
+├── uv.lock                     # Locked dependency versions
 └── README.md                   # This file
 ```
 
