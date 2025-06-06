@@ -22,12 +22,16 @@ mcp = FastMCP("ExecBoxMCP")
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
     
-    def __init__(self, config_path: str = "powershell_config.json"):
+    def __init__(self, config_path: str = "config.json"):
         self.config_path = config_path
         self.config = self._load_config()
     
     def _load_config(self) -> Dict[str, Any]:
-        """Load configuration from JSON file."""
+        """Load configuration from JSON file.
+        
+        Returns:
+            The loaded configuration dictionary
+        """
         default_config = {
             "allowed_commands": [
                 "Get-ChildItem", "Get-Item", "Get-Content", "Get-Location",
@@ -79,7 +83,11 @@ class PowerShellConfig:
         return default_config
     
     def _save_config(self, config: Dict[str, Any]) -> None:
-        """Save configuration to JSON file."""
+        """Save configuration to JSON file.
+        
+        Args:
+            config: The configuration dictionary to save
+        """
         try:
             with open(self.config_path, 'w') as f:
                 json.dump(config, f, indent=2)
@@ -111,7 +119,14 @@ class PowerShellConfig:
         return True, "Command is allowed"
     
     def is_directory_allowed(self, directory: str) -> bool:
-        """Check if a directory is in the allowed list."""
+        """Check if a directory is in the allowed list.
+        
+        Args:
+            directory: The directory to check
+        
+        Returns:
+            True if the directory is allowed, False otherwise
+        """
         abs_dir = os.path.abspath(directory)
         for allowed_dir in self.config["allowed_directories"]:
             abs_allowed = os.path.abspath(allowed_dir)
