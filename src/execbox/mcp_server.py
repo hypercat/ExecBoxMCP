@@ -239,6 +239,7 @@ class PowerShellConfig:
         
         primary_command = command.strip().split()[0] if command.strip() else ""
         
+        # Check if the primary command (executable) is in the allowed list
         allowed_commands = [cmd.lower() for cmd in self.config["allowed_commands"]]
         if primary_command.lower() not in allowed_commands:
             reason = f"Command '{primary_command}' is not in the allowed commands list"
@@ -259,9 +260,17 @@ class PowerShellConfig:
         """
         abs_dir = os.path.abspath(directory)
         for allowed_dir in self.config["allowed_directories"]:
-            abs_allowed = os.path.abspath(allowed_dir)
-            if abs_dir.startswith(abs_allowed):
-                return True
+            # Handle wildcard patterns
+            if '*' in allowed_dir:
+                # Convert wildcard pattern to regex
+                pattern = allowed_dir.replace('\\', '\\\\').replace('*', '.*')
+                if re.match(pattern, abs_dir, re.IGNORECASE):
+                    return True
+            else:
+                # Standard prefix matching
+                abs_allowed = os.path.abspath(allowed_dir)
+                if abs_dir.startswith(abs_allowed):
+                    return True
         return False
 
 
