@@ -401,25 +401,25 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_validate_command_tool(self):
         """Test the validate_command MCP tool."""
-        # Import the tool function
-        from execbox.mcp_server import validate_command
+        # Import the implementation function
+        from execbox.mcp_server import validate_command_impl
         
         # Test valid command
-        result = await validate_command("Get-Date")
+        result = await validate_command_impl("Get-Date")
         assert result["is_allowed"] is True
         assert result["command"] == "Get-Date"
         
         # Test invalid command
-        result = await validate_command("New-Item file.txt")
+        result = await validate_command_impl("New-Item file.txt")
         assert result["is_allowed"] is False
         assert "not in the allowed commands list" in result["reason"]
     
     @pytest.mark.asyncio
     async def test_list_allowed_commands_tool(self):
         """Test the list_allowed_commands MCP tool."""
-        from execbox.mcp_server import list_allowed_commands
+        from execbox.mcp_server import list_allowed_commands_impl
         
-        result = await list_allowed_commands()
+        result = await list_allowed_commands_impl()
         assert isinstance(result, list)
         assert "Get-Date" in result
         assert "Get-ChildItem" in result
@@ -427,18 +427,18 @@ class TestMCPTools:
     @pytest.mark.asyncio
     async def test_list_allowed_directories_tool(self):
         """Test the list_allowed_directories MCP tool."""
-        from execbox.mcp_server import list_allowed_directories
+        from execbox.mcp_server import list_allowed_directories_impl
         
-        result = await list_allowed_directories()
+        result = await list_allowed_directories_impl()
         assert isinstance(result, list)
         assert any("temp" in dir_path.lower() for dir_path in result)
     
     @pytest.mark.asyncio
     async def test_get_security_config_tool(self):
         """Test the get_security_config MCP tool."""
-        from execbox.mcp_server import get_security_config
+        from execbox.mcp_server import get_security_config_impl
         
-        result = await get_security_config()
+        result = await get_security_config_impl()
         assert "allowed_commands_count" in result
         assert "allowed_directories_count" in result
         assert "blocked_patterns_count" in result
