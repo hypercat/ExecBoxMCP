@@ -15,7 +15,15 @@
     "Select-Object",
     "Where-Object",
     "Sort-Object",
-    "Measure-Object"
+    "Measure-Object",
+    "git",
+    "cargo",
+    "npm",
+    "node",
+    "python",
+    "pip",
+    "dotnet",
+    "docker"
   ],
   "allowed_directories": [
     "C:\\Users\\Public",
@@ -39,7 +47,6 @@
     "\\.ps1",
     "\\.bat",
     "\\.cmd",
-    "\\.exe",
     "powershell\\.exe",
     "cmd\\.exe"
   ],
