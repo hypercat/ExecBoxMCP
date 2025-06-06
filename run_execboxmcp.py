@@ -82,9 +82,11 @@ def main():
     os.chdir(script_dir)
     
     try:
-        # Run the server
-        result = subprocess.run(cmd, cwd=script_dir)
-        sys.exit(result.returncode)
+        # Run the server with proper stdio handling
+        # Use subprocess.Popen to allow stdio passthrough
+        process = subprocess.Popen(cmd, cwd=script_dir)
+        result = process.wait()
+        sys.exit(result)
     except KeyboardInterrupt:
         print("\nServer stopped by user", file=sys.stderr)
         sys.exit(0)

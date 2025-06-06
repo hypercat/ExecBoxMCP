@@ -35,6 +35,18 @@ async def test_fast_agent_connection():
         
         print("Server process started via runner...")
         
+        # Give the server a moment to start up
+        await asyncio.sleep(2)
+        
+        # Check if process is still running
+        if process.returncode is not None:
+            print(f"Server process exited early with code: {process.returncode}")
+            stderr_data = await process.stderr.read()
+            if stderr_data:
+                stderr_str = stderr_data.decode()
+                print(f"Server stderr: {stderr_str}")
+            return False
+        
         # Send initialize message
         init_message = {
             "jsonrpc": "2.0",
