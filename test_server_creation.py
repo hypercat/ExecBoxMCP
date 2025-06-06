@@ -21,11 +21,11 @@ def test_server_creation():
         tools = mcp.list_tools()
         print(f"Available tools: {[tool.name for tool in tools]}")
         
-        print("✓ Server creation test passed!")
+        print("+ Server creation test passed!")
         return True
         
     except Exception as e:
-        print(f"✗ Server creation test failed: {str(e)}")
+        print(f"- Server creation test failed: {str(e)}")
         print(f"Traceback:\n{traceback.format_exc()}")
         return False
 

@@ -15,15 +15,15 @@ def main():
     try:
         print("Testing imports...")
         import asyncio
-        print("✓ asyncio imported")
+        print("+ asyncio imported")
         
         import json
-        print("✓ json imported")
+        print("+ json imported")
         
         from fastmcp import FastMCP
-        print("✓ fastmcp imported")
+        print("+ fastmcp imported")
         
-        print("✓ All basic imports successful")
+        print("+ All basic imports successful")
         
     except Exception as e:
         print(f"FATAL: Import error during startup: {str(e)}")
@@ -33,7 +33,7 @@ def main():
     try:
         # Import our module after basic imports are verified
         from execbox.mcp_server import create_mcp_server
-        print("✓ execbox.mcp_server imported")
+        print("+ execbox.mcp_server imported")
         
         parser = argparse.ArgumentParser(description="ExecBox MCP Server - Secure PowerShell command execution")
         parser.add_argument(

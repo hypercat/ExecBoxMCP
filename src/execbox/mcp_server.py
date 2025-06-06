@@ -24,7 +24,7 @@ def setup_logging():
         
         # Create logs directory if it doesn't exist
         os.makedirs("logs", exist_ok=True)
-        print("✓ Logs directory created/verified")
+        print("+ Logs directory created/verified")
         
         logger = logging.getLogger("execbox")
         
@@ -40,12 +40,12 @@ def setup_logging():
             backupCount=5
         )
         file_handler.setLevel(logging.INFO)
-        print("✓ File handler created")
+        print("+ File handler created")
         
         # Console handler for immediate feedback (lower threshold for debugging)
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
-        print("✓ Console handler created")
+        print("+ Console handler created")
         
         # Formatter
         formatter = logging.Formatter(
@@ -53,15 +53,15 @@ def setup_logging():
         )
         file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
-        print("✓ Formatters applied")
+        print("+ Formatters applied")
         
         logger.addHandler(file_handler)
         logger.addHandler(console_handler)
-        print("✓ Handlers added to logger")
+        print("+ Handlers added to logger")
         
         # Test log to ensure it's working
         logger.info("Logging system initialized successfully")
-        print("✓ Test log written successfully")
+        print("+ Test log written successfully")
         
         return logger
     except Exception as e:
@@ -78,11 +78,11 @@ def setup_logging():
 # Initialize logging early
 print("Initializing logging system...")
 logger = setup_logging()
-print("✓ Logging system ready")
+print("+ Logging system ready")
 
 print("Creating FastMCP instance...")
 mcp = FastMCP("ExecBoxMCP")
-print("✓ FastMCP instance created")
+print("+ FastMCP instance created")
 
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
