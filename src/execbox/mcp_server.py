@@ -530,7 +530,7 @@ def create_mcp_server(config_path: str = "config.json") -> FastMCP:
         
         # Verify that all tools are properly registered
         print("Verifying MCP tools registration...")
-        tools = mcp.list_tools()
+        tools = mcp.get_tools()
         print(f"Registered tools: {[tool.name for tool in tools]}")
         
         logger.info("MCP server created successfully")
