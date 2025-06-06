@@ -320,42 +320,13 @@ class PowerShellExecutor:
                     }
             
             # Prepare PowerShell command
-            # Use Bypass for external commands but still prevent script execution via our validation
-            # For external commands, try to locate them first using where.exe
-            primary_command = command.strip().split()[0] if command.strip() else ""
-            
-            # Check if this is an external command (not a PowerShell cmdlet)
-            external_commands = ['git', 'cargo', 'npm', 'node', 'python', 'pip', 'dotnet', 'docker']
-            if primary_command.lower() in external_commands:
-                # Use a PowerShell command that first locates the executable, then runs it
-                ps_command_text = f"""
-                $cmd = Get-Command '{primary_command}' -ErrorAction SilentlyContinue
-                if ($cmd) {{
-                    & {command}
-                }} else {{
-                    $path = (Get-Command '{primary_command}.exe' -ErrorAction SilentlyContinue).Source
-                    if ($path) {{
-                        $args = '{command}'.Substring('{primary_command}'.Length).Trim()
-                        if ($args) {{
-                            & $path $args.Split(' ')
-                        }} else {{
-                            & $path
-                        }}
-                    }} else {{
-                        Write-Error "Command '{primary_command}' not found in PATH"
-                    }}
-                }}
-                """.strip()
-            else:
-                # For PowerShell cmdlets, use the command as-is
-                ps_command_text = command
-            
+            # Use a simpler approach that refreshes the environment and executes the command directly
             ps_command = [
                 "powershell.exe",
                 "-NoProfile",
                 "-NonInteractive",
                 "-ExecutionPolicy", "Bypass",  # Allow external commands to run
-                "-Command", ps_command_text
+                "-Command", f"$env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('PATH', 'User'); {command}"
             ]
             
             logger.debug(f"Executing PowerShell with args: {ps_command}")
