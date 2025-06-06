@@ -19,37 +19,54 @@ from fastmcp import FastMCP
 # Set up logging with rotation
 def setup_logging():
     """Set up logging with file rotation."""
-    logger = logging.getLogger("execbox")
-    logger.setLevel(logging.INFO)
-    
-    # Create logs directory if it doesn't exist
-    os.makedirs("logs", exist_ok=True)
-    
-    # File handler with rotation (1MB max, keep 5 files)
-    file_handler = logging.handlers.RotatingFileHandler(
-        "logs/execbox.log",
-        maxBytes=1024*1024,  # 1MB
-        backupCount=5
-    )
-    file_handler.setLevel(logging.INFO)
-    
-    # Console handler for immediate feedback
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.WARNING)
-    
-    # Formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    file_handler.setFormatter(formatter)
-    console_handler.setFormatter(formatter)
-    
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
-    
-    return logger
+    try:
+        # Create logs directory if it doesn't exist
+        os.makedirs("logs", exist_ok=True)
+        
+        logger = logging.getLogger("execbox")
+        
+        # Clear any existing handlers to avoid duplicates
+        logger.handlers.clear()
+        
+        logger.setLevel(logging.INFO)
+        
+        # File handler with rotation (1MB max, keep 5 files)
+        file_handler = logging.handlers.RotatingFileHandler(
+            "logs/execbox.log",
+            maxBytes=1024*1024,  # 1MB
+            backupCount=5
+        )
+        file_handler.setLevel(logging.INFO)
+        
+        # Console handler for immediate feedback (lower threshold for debugging)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        
+        # Formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
+        
+        # Test log to ensure it's working
+        logger.info("Logging system initialized successfully")
+        
+        return logger
+    except Exception as e:
+        # Fallback to basic logging if setup fails
+        print(f"Warning: Failed to setup logging: {e}")
+        basic_logger = logging.getLogger("execbox")
+        basic_logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+        basic_logger.addHandler(handler)
+        return basic_logger
 
-# Initialize logging
+# Initialize logging early
 logger = setup_logging()
 
 mcp = FastMCP("ExecBoxMCP")
@@ -486,13 +503,33 @@ def create_mcp_server(config_path: str = "config.json") -> FastMCP:
     """
     global config, executor
     
+    print(f"create_mcp_server called with config_path: {config_path}")
+    
     try:
         logger.info(f"Creating MCP server with config: {config_path}")
+        print(f"Creating PowerShellConfig with path: {config_path}")
+        
         config = PowerShellConfig(config_path)
+        print("PowerShellConfig created successfully")
+        
         executor = PowerShellExecutor(config)
+        print("PowerShellExecutor created successfully")
+        
         logger.info("MCP server created successfully")
+        print("Returning FastMCP instance")
+        
         return mcp
     except Exception as e:
-        logger.error(f"Failed to create MCP server: {str(e)}")
-        logger.error(f"Exception traceback: {traceback.format_exc()}")
+        error_msg = f"Failed to create MCP server: {str(e)}"
+        traceback_str = traceback.format_exc()
+        
+        print(f"ERROR in create_mcp_server: {error_msg}")
+        print(f"Traceback: {traceback_str}")
+        
+        try:
+            logger.error(error_msg)
+            logger.error(f"Exception traceback: {traceback_str}")
+        except:
+            print("Could not write error to logger")
+        
         raise
