@@ -76,6 +76,7 @@ def setup_logging():
         return basic_logger
 
 # Initialize logging early
+# Note: These prints will be redirected to stderr in stdio mode by main.py
 print("Initializing logging system...")
 logger = setup_logging()
 print("+ Logging system ready")
@@ -87,8 +88,9 @@ print("+ FastMCP instance created")
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
     
-    def __init__(self, config_path: str = "config.json"):
+    def __init__(self, config_path: str = "config.json", is_stdio_mode: bool = False):
         self.config_path = config_path
+        self.is_stdio_mode = is_stdio_mode
         self.config = self._load_config()
     
     def _load_config(self) -> Dict[str, Any]:
@@ -97,6 +99,13 @@ class PowerShellConfig:
         Returns:
             The loaded configuration dictionary
         """
+        # Function to print debug info (to stderr in stdio mode, stdout otherwise)
+        def debug_print(*args, **kwargs):
+            if self.is_stdio_mode:
+                print(*args, file=sys.stderr, **kwargs)
+            else:
+                print(*args, **kwargs)
+        
         logger.info(f"Loading configuration from {self.config_path}")
         default_config = {
             "allowed_commands": [
@@ -145,8 +154,8 @@ class PowerShellConfig:
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Could not load config file {self.config_path}: {e}")
                 logger.warning("Using default configuration.")
-                print(f"Warning: Could not load config file {self.config_path}: {e}")
-                print("Using default configuration.")
+                debug_print(f"Warning: Could not load config file {self.config_path}: {e}")
+                debug_print("Using default configuration.")
         else:
             logger.info(f"Config file {self.config_path} not found, creating default configuration")
             # Create default config file
@@ -160,13 +169,20 @@ class PowerShellConfig:
         Args:
             config: The configuration dictionary to save
         """
+        # Function to print debug info (to stderr in stdio mode, stdout otherwise)
+        def debug_print(*args, **kwargs):
+            if self.is_stdio_mode:
+                print(*args, file=sys.stderr, **kwargs)
+            else:
+                print(*args, **kwargs)
+        
         try:
             with open(self.config_path, 'w') as f:
                 json.dump(config, f, indent=2)
             logger.info(f"Configuration saved to {self.config_path}")
         except IOError as e:
             logger.error(f"Could not save config file: {e}")
-            print(f"Warning: Could not save config file: {e}")
+            debug_print(f"Warning: Could not save config file: {e}")
     
     def is_command_allowed(self, command: str) -> tuple[bool, str]:
         """Check if a command is allowed based on configuration.
@@ -504,59 +520,67 @@ async def validate_command(command: str) -> Dict[str, Any]:
         logger.error(f"Exception traceback: {traceback.format_exc()}")
         raise
 
-def create_mcp_server(config_path: str = "config.json") -> FastMCP:
+def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = False) -> FastMCP:
     """
     Create and configure the MCP server with the specified config file.
     
     Args:
         config_path: Path to the configuration JSON file
+        is_stdio_mode: Whether running in stdio mode (affects debug output)
         
     Returns:
         Configured FastMCP server instance
     """
     global config, executor
     
-    print(f"create_mcp_server called with config_path: {config_path}")
+    # Function to print debug info (to stderr in stdio mode, stdout otherwise)
+    def debug_print(*args, **kwargs):
+        if is_stdio_mode:
+            print(*args, file=sys.stderr, **kwargs)
+        else:
+            print(*args, **kwargs)
+    
+    debug_print(f"create_mcp_server called with config_path: {config_path}")
     
     try:
         logger.info(f"Creating MCP server with config: {config_path}")
-        print(f"Creating PowerShellConfig with path: {config_path}")
+        debug_print(f"Creating PowerShellConfig with path: {config_path}")
         
-        config = PowerShellConfig(config_path)
-        print("PowerShellConfig created successfully")
+        config = PowerShellConfig(config_path, is_stdio_mode)
+        debug_print("PowerShellConfig created successfully")
         
         executor = PowerShellExecutor(config)
-        print("PowerShellExecutor created successfully")
+        debug_print("PowerShellExecutor created successfully")
         
         # Verify the MCP server is properly configured
-        print("Verifying MCP server configuration...")
+        debug_print("Verifying MCP server configuration...")
         try:
             # Check that tools are registered
-            print(f"FastMCP instance: {mcp}")
-            print(f"FastMCP name: {mcp.name}")
+            debug_print(f"FastMCP instance: {mcp}")
+            debug_print(f"FastMCP name: {mcp.name}")
             
             # Test that we can access the tools (this might be async)
-            print("MCP server appears to be properly configured")
+            debug_print("MCP server appears to be properly configured")
             
         except Exception as verify_error:
-            print(f"Warning: MCP server verification failed: {verify_error}")
+            debug_print(f"Warning: MCP server verification failed: {verify_error}")
             # Don't fail here, just warn
         
         logger.info("MCP server created successfully")
-        print("MCP server configuration completed successfully")
+        debug_print("MCP server configuration completed successfully")
         
         return mcp
     except Exception as e:
         error_msg = f"Failed to create MCP server: {str(e)}"
         traceback_str = traceback.format_exc()
         
-        print(f"ERROR in create_mcp_server: {error_msg}")
-        print(f"Traceback: {traceback_str}")
+        debug_print(f"ERROR in create_mcp_server: {error_msg}")
+        debug_print(f"Traceback: {traceback_str}")
         
         try:
             logger.error(error_msg)
             logger.error(f"Exception traceback: {traceback_str}")
         except:
-            print("Could not write error to logger")
+            debug_print("Could not write error to logger")
         
         raise

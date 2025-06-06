@@ -5,35 +5,46 @@ import traceback
 import os
 
 def main():
+    # Check if we're running in stdio mode (which is what MCP clients expect)
+    is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
+    
+    # Function to print debug info (to stderr in stdio mode, stdout otherwise)
+    def debug_print(*args, **kwargs):
+        if is_stdio_mode:
+            print(*args, file=sys.stderr, **kwargs)
+        else:
+            print(*args, **kwargs)
+    
     # Print startup info immediately for debugging
-    print("ExecBox MCP Server starting...")
-    print(f"Python executable: {sys.executable}")
-    print(f"Working directory: {os.getcwd()}")
-    print(f"Python path: {sys.path}")
+    debug_print("ExecBox MCP Server starting...")
+    debug_print(f"Python executable: {sys.executable}")
+    debug_print(f"Working directory: {os.getcwd()}")
+    debug_print(f"Python path: {sys.path}")
+    debug_print(f"Running in {'stdio' if is_stdio_mode else 'interactive'} mode")
     
     # Test imports early
     try:
-        print("Testing imports...")
+        debug_print("Testing imports...")
         import asyncio
-        print("+ asyncio imported")
+        debug_print("+ asyncio imported")
         
         import json
-        print("+ json imported")
+        debug_print("+ json imported")
         
         from fastmcp import FastMCP
-        print("+ fastmcp imported")
+        debug_print("+ fastmcp imported")
         
-        print("+ All basic imports successful")
+        debug_print("+ All basic imports successful")
         
     except Exception as e:
-        print(f"FATAL: Import error during startup: {str(e)}")
-        print(f"Traceback:\n{traceback.format_exc()}")
+        debug_print(f"FATAL: Import error during startup: {str(e)}")
+        debug_print(f"Traceback:\n{traceback.format_exc()}")
         sys.exit(1)
     
     try:
         # Import our module after basic imports are verified
         from execbox.mcp_server import create_mcp_server
-        print("+ execbox.mcp_server imported")
+        debug_print("+ execbox.mcp_server imported")
         
         parser = argparse.ArgumentParser(description="ExecBox MCP Server - Secure PowerShell command execution")
         parser.add_argument(
@@ -50,31 +61,31 @@ def main():
         )
         
         args = parser.parse_args()
-        print(f"Parsed arguments: config={args.config}, log_level={args.log_level}")
+        debug_print(f"Parsed arguments: config={args.config}, log_level={args.log_level}")
         
         # Set log level for the execbox logger
         logger = logging.getLogger("execbox")
         logger.setLevel(getattr(logging, args.log_level))
         
-        print(f"Logger configured with level: {args.log_level}")
+        debug_print(f"Logger configured with level: {args.log_level}")
         
         logger.info(f"Starting ExecBox MCP Server with config: {args.config}")
-        print(f"Creating MCP server with config: {args.config}")
+        debug_print(f"Creating MCP server with config: {args.config}")
         
-        mcp = create_mcp_server(args.config)
-        print("MCP server created successfully")
+        mcp = create_mcp_server(args.config, is_stdio_mode)
+        debug_print("MCP server created successfully")
         
         logger.info("MCP Server starting...")
-        print("Starting MCP server...")
-        print("About to call mcp.run()...")
+        debug_print("Starting MCP server...")
+        debug_print("About to call mcp.run()...")
         
         # Flush output before starting the server
         sys.stdout.flush()
         sys.stderr.flush()
         
         # Add some MCP-specific debugging
-        print("MCP server info:")
-        print(f"  Server name: {mcp.name}")
+        debug_print("MCP server info:")
+        debug_print(f"  Server name: {mcp.name}")
         
         # Test tools availability asynchronously
         async def test_tools():
@@ -82,39 +93,33 @@ def main():
                 tools = await mcp.get_tools()
                 if isinstance(tools, dict):
                     tool_names = list(tools.keys())
-                    print(f"  Available tools: {len(tools)} - {tool_names}")
+                    debug_print(f"  Available tools: {len(tools)} - {tool_names}")
                 else:
-                    print(f"  Tools result type: {type(tools)}")
-                    print(f"  Available tools: {tools}")
+                    debug_print(f"  Tools result type: {type(tools)}")
+                    debug_print(f"  Available tools: {tools}")
                 return True
             except Exception as e:
-                print(f"  Error getting tools: {e}")
+                debug_print(f"  Error getting tools: {e}")
                 return False
         
         # Run the async test
         tools_ok = asyncio.run(test_tools())
         if not tools_ok:
-            print("ERROR: Tools are not accessible!")
+            debug_print("ERROR: Tools are not accessible!")
             sys.exit(1)
         
-        # Check if we're running in stdio mode (which is what MCP clients expect)
-        if hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty():
-            print("Running in stdio mode (non-interactive)")
-        else:
-            print("Running in interactive mode")
-        
-        print("Starting MCP server run loop...")
+        debug_print("Starting MCP server run loop...")
         
         # Add error handling around mcp.run()
         try:
             mcp.run()
         except Exception as run_error:
-            print(f"ERROR in mcp.run(): {run_error}")
-            print(f"Run error traceback: {traceback.format_exc()}")
+            debug_print(f"ERROR in mcp.run(): {run_error}")
+            debug_print(f"Run error traceback: {traceback.format_exc()}")
             raise
         
     except KeyboardInterrupt:
-        print("MCP Server stopped by user (KeyboardInterrupt)")
+        debug_print("MCP Server stopped by user (KeyboardInterrupt)")
         try:
             logger = logging.getLogger("execbox")
             logger.info("MCP Server stopped by user")
@@ -122,16 +127,16 @@ def main():
             pass
         sys.exit(0)
     except Exception as e:
-        print(f"FATAL ERROR: Failed to start MCP Server: {str(e)}")
-        print(f"Exception type: {type(e).__name__}")
-        print(f"Traceback:\n{traceback.format_exc()}")
+        debug_print(f"FATAL ERROR: Failed to start MCP Server: {str(e)}")
+        debug_print(f"Exception type: {type(e).__name__}")
+        debug_print(f"Traceback:\n{traceback.format_exc()}")
         
         try:
             logger = logging.getLogger("execbox")
             logger.error(f"Failed to start MCP Server: {str(e)}")
             logger.error(f"Exception traceback: {traceback.format_exc()}")
         except:
-            print("Could not write to logger")
+            debug_print("Could not write to logger")
         
         sys.exit(1)
 
