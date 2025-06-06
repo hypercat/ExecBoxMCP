@@ -221,8 +221,8 @@ class PowerShellExecutor:
 config = None
 executor = None
 
-# Business logic functions (testable)
-async def execute_powershell_impl(command: str, working_directory: Optional[str] = None) -> Dict[str, Any]:
+# Business logic functions (these are what the MCP tools call and what we test)
+async def execute_powershell_command(command: str, working_directory: Optional[str] = None) -> Dict[str, Any]:
     """
     Execute a PowerShell command with security restrictions.
     
@@ -235,7 +235,7 @@ async def execute_powershell_impl(command: str, working_directory: Optional[str]
     """
     return await executor.execute_command(command, working_directory)
 
-async def list_allowed_commands_impl() -> List[str]:
+async def get_allowed_commands() -> List[str]:
     """
     Get the list of allowed PowerShell commands.
     
@@ -244,7 +244,7 @@ async def list_allowed_commands_impl() -> List[str]:
     """
     return config.config["allowed_commands"]
 
-async def list_allowed_directories_impl() -> List[str]:
+async def get_allowed_directories() -> List[str]:
     """
     Get the list of allowed working directories.
     
@@ -253,7 +253,7 @@ async def list_allowed_directories_impl() -> List[str]:
     """
     return config.config["allowed_directories"]
 
-async def get_security_config_impl() -> Dict[str, Any]:
+async def get_current_security_config() -> Dict[str, Any]:
     """
     Get the current security configuration.
     
@@ -268,7 +268,7 @@ async def get_security_config_impl() -> Dict[str, Any]:
         "timeout_seconds": config.config["timeout_seconds"]
     }
 
-async def validate_command_impl(command: str) -> Dict[str, Any]:
+async def validate_powershell_command(command: str) -> Dict[str, Any]:
     """
     Validate a PowerShell command without executing it.
     
@@ -285,7 +285,7 @@ async def validate_command_impl(command: str) -> Dict[str, Any]:
         "command": command
     }
 
-# MCP tool wrappers
+# MCP tools (these call the business logic functions above)
 @mcp.tool()
 async def execute_powershell(command: str, working_directory: Optional[str] = None) -> Dict[str, Any]:
     """
@@ -298,7 +298,7 @@ async def execute_powershell(command: str, working_directory: Optional[str] = No
     Returns:
         Dictionary containing execution results and metadata
     """
-    return await execute_powershell_impl(command, working_directory)
+    return await execute_powershell_command(command, working_directory)
 
 @mcp.tool()
 async def list_allowed_commands() -> List[str]:
@@ -308,7 +308,7 @@ async def list_allowed_commands() -> List[str]:
     Returns:
         List of allowed command names
     """
-    return await list_allowed_commands_impl()
+    return await get_allowed_commands()
 
 @mcp.tool()
 async def list_allowed_directories() -> List[str]:
@@ -318,7 +318,7 @@ async def list_allowed_directories() -> List[str]:
     Returns:
         List of allowed directory paths
     """
-    return await list_allowed_directories_impl()
+    return await get_allowed_directories()
 
 @mcp.tool()
 async def get_security_config() -> Dict[str, Any]:
@@ -328,7 +328,7 @@ async def get_security_config() -> Dict[str, Any]:
     Returns:
         Current security configuration settings
     """
-    return await get_security_config_impl()
+    return await get_current_security_config()
 
 @mcp.tool()
 async def validate_command(command: str) -> Dict[str, Any]:
@@ -341,7 +341,7 @@ async def validate_command(command: str) -> Dict[str, Any]:
     Returns:
         Validation result with details
     """
-    return await validate_command_impl(command)
+    return await validate_powershell_command(command)
 
 def create_mcp_server(config_path: str = "config.json") -> FastMCP:
     """
