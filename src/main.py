@@ -80,7 +80,12 @@ def main():
         async def test_tools():
             try:
                 tools = await mcp.get_tools()
-                print(f"  Available tools: {len(tools)} - {[tool.name for tool in tools]}")
+                if isinstance(tools, dict):
+                    tool_names = list(tools.keys())
+                    print(f"  Available tools: {len(tools)} - {tool_names}")
+                else:
+                    print(f"  Tools result type: {type(tools)}")
+                    print(f"  Available tools: {tools}")
                 return True
             except Exception as e:
                 print(f"  Error getting tools: {e}")

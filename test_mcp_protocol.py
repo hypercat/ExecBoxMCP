@@ -24,7 +24,14 @@ async def test_mcp_protocol():
         print(f"Tools result: {tools_result}")
         
         # Handle different return types
-        if isinstance(tools_result, list):
+        if isinstance(tools_result, dict):
+            if tools_result:
+                tool_names = list(tools_result.keys())
+                print(f"Tool names: {tool_names}")
+            else:
+                print("- No tools found!")
+                return False
+        elif isinstance(tools_result, list):
             if tools_result:
                 # Check if items have .name attribute or are strings
                 if hasattr(tools_result[0], 'name'):
