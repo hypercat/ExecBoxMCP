@@ -59,6 +59,11 @@ def main():
             default="INFO",
             help="Set the logging level (default: INFO)"
         )
+        parser.add_argument(
+            "--enable-file-logging",
+            action="store_true",
+            help="Enable logging to file (disabled by default)"
+        )
         
         args = parser.parse_args()
         debug_print(f"Parsed arguments: config={args.config}, log_level={args.log_level}")
@@ -72,7 +77,7 @@ def main():
         logger.info(f"Starting ExecBox MCP Server with config: {args.config}")
         debug_print(f"Creating MCP server with config: {args.config}")
         
-        mcp = create_mcp_server(args.config, is_stdio_mode)
+        mcp = create_mcp_server(args.config, is_stdio_mode, args.enable_file_logging)
         debug_print("MCP server created successfully")
         
         logger.info("MCP Server starting...")

@@ -18,19 +18,14 @@ from typing import Any, Dict, List, Optional
 from fastmcp import FastMCP
 
 # Set up logging with rotation
-def setup_logging():
-    """Set up logging with file rotation."""
+def setup_logging(enable_file_logging: bool = False):
+    """Set up logging with optional file rotation."""
     # Check if we're in stdio mode to suppress debug prints
     _is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
     
     try:
         if not _is_stdio_mode:
             print("Setting up logging system...")
-        
-        # Create logs directory if it doesn't exist
-        os.makedirs("logs", exist_ok=True)
-        if not _is_stdio_mode:
-            print("+ Logs directory created/verified")
         
         logger = logging.getLogger("execbox")
         
@@ -39,15 +34,35 @@ def setup_logging():
         
         logger.setLevel(logging.INFO)
         
-        # File handler with rotation (1MB max, keep 5 files)
-        file_handler = logging.handlers.RotatingFileHandler(
-            "logs/execbox.log",
-            maxBytes=1024*1024,  # 1MB
-            backupCount=5
-        )
-        file_handler.setLevel(logging.INFO)
-        if not _is_stdio_mode:
-            print("+ File handler created")
+        # Only create file handler if file logging is enabled
+        if enable_file_logging:
+            # Create logs directory if it doesn't exist
+            os.makedirs("logs", exist_ok=True)
+            if not _is_stdio_mode:
+                print("+ Logs directory created/verified")
+            
+            # File handler with rotation (1MB max, keep 5 files)
+            file_handler = logging.handlers.RotatingFileHandler(
+                "logs/execbox.log",
+                maxBytes=1024*1024,  # 1MB
+                backupCount=5
+            )
+            file_handler.setLevel(logging.INFO)
+            if not _is_stdio_mode:
+                print("+ File handler created")
+            
+            # Formatter
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            
+            if not _is_stdio_mode:
+                print("+ File logging enabled")
+        else:
+            if not _is_stdio_mode:
+                print("+ File logging disabled")
         
         # Console handler for immediate feedback (lower threshold for debugging)
         console_handler = logging.StreamHandler()
@@ -59,13 +74,9 @@ def setup_logging():
         formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        file_handler.setFormatter(formatter)
         console_handler.setFormatter(formatter)
-        if not _is_stdio_mode:
-            print("+ Formatters applied")
-        
-        logger.addHandler(file_handler)
         logger.addHandler(console_handler)
+        
         if not _is_stdio_mode:
             print("+ Handlers added to logger")
         
@@ -94,7 +105,7 @@ _is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
 
 if not _is_stdio_mode:
     print("Initializing logging system...")
-logger = setup_logging()
+logger = setup_logging(enable_file_logging=False)  # Default to no file logging
 if not _is_stdio_mode:
     print("+ Logging system ready")
 
@@ -107,9 +118,10 @@ if not _is_stdio_mode:
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
     
-    def __init__(self, config_path: str = "config.json", is_stdio_mode: bool = False):
+    def __init__(self, config_path: str = "config.json", is_stdio_mode: bool = False, enable_file_logging: bool = False):
         self.config_path = config_path
         self.is_stdio_mode = is_stdio_mode
+        self.enable_file_logging = enable_file_logging
         self.config = self._load_config()
     
     def _load_config(self) -> Dict[str, Any]:
@@ -539,13 +551,14 @@ async def validate_command(command: str) -> Dict[str, Any]:
         logger.error(f"Exception traceback: {traceback.format_exc()}")
         raise
 
-def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = False) -> FastMCP:
+def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = False, enable_file_logging: bool = False) -> FastMCP:
     """
     Create and configure the MCP server with the specified config file.
     
     Args:
         config_path: Path to the configuration JSON file
         is_stdio_mode: Whether running in stdio mode (affects debug output)
+        enable_file_logging: Whether to enable file logging
         
     Returns:
         Configured FastMCP server instance
@@ -565,7 +578,7 @@ def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = Fa
         logger.info(f"Creating MCP server with config: {config_path}")
         debug_print(f"Creating PowerShellConfig with path: {config_path}")
         
-        config = PowerShellConfig(config_path, is_stdio_mode)
+        config = PowerShellConfig(config_path, is_stdio_mode, enable_file_logging)
         debug_print("PowerShellConfig created successfully")
         
         executor = PowerShellExecutor(config)
