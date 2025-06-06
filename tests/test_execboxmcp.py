@@ -392,31 +392,31 @@ class TestMCPTools:
     
     @pytest.mark.asyncio
     async def test_validate_command_tool(self):
-        """Test the actual validate_command MCP tool."""
-        # Import the actual MCP tool function
-        from execbox.mcp_server import validate_command
+        """Test the actual validate_command MCP tool implementation."""
+        # Import the actual implementation function
+        from execbox.mcp_server import validate_command_impl
         
         # Test valid command
-        result = await validate_command("Get-Date")
+        result = await validate_command_impl("Get-Date")
         assert result["is_allowed"] is True
         assert result["command"] == "Get-Date"
         
         # Test invalid command
-        result = await validate_command("New-Item file.txt")
+        result = await validate_command_impl("New-Item file.txt")
         assert result["is_allowed"] is False
         assert "not in the allowed commands list" in result["reason"]
         
         # Test blocked pattern
-        result = await validate_command("Get-Date; Get-Host")
+        result = await validate_command_impl("Get-Date; Get-Host")
         assert result["is_allowed"] is False
         assert "blocked pattern" in result["reason"]
     
     @pytest.mark.asyncio
     async def test_list_allowed_commands_tool(self):
-        """Test the actual list_allowed_commands MCP tool."""
-        from execbox.mcp_server import list_allowed_commands
+        """Test the actual list_allowed_commands MCP tool implementation."""
+        from execbox.mcp_server import list_allowed_commands_impl
         
-        result = await list_allowed_commands()
+        result = await list_allowed_commands_impl()
         assert isinstance(result, list)
         assert "Get-Date" in result
         assert "Get-ChildItem" in result
@@ -424,20 +424,20 @@ class TestMCPTools:
     
     @pytest.mark.asyncio
     async def test_list_allowed_directories_tool(self):
-        """Test the actual list_allowed_directories MCP tool."""
-        from execbox.mcp_server import list_allowed_directories
+        """Test the actual list_allowed_directories MCP tool implementation."""
+        from execbox.mcp_server import list_allowed_directories_impl
         
-        result = await list_allowed_directories()
+        result = await list_allowed_directories_impl()
         assert isinstance(result, list)
         assert any("temp" in dir_path.lower() for dir_path in result)
         assert len(result) > 0
     
     @pytest.mark.asyncio
     async def test_get_security_config_tool(self):
-        """Test the actual get_security_config MCP tool."""
-        from execbox.mcp_server import get_security_config
+        """Test the actual get_security_config MCP tool implementation."""
+        from execbox.mcp_server import get_security_config_impl
         
-        result = await get_security_config()
+        result = await get_security_config_impl()
         assert "allowed_commands_count" in result
         assert "allowed_directories_count" in result
         assert "blocked_patterns_count" in result
@@ -449,11 +449,11 @@ class TestMCPTools:
     
     @pytest.mark.asyncio
     async def test_execute_powershell_tool_blocked_command(self):
-        """Test the actual execute_powershell MCP tool with blocked command."""
-        from execbox.mcp_server import execute_powershell
+        """Test the actual execute_powershell MCP tool implementation with blocked command."""
+        from execbox.mcp_server import execute_powershell_impl
         
         # Test blocked command
-        result = await execute_powershell("Remove-Item file.txt")
+        result = await execute_powershell_impl("Remove-Item file.txt")
         assert result["success"] is False
         assert "Command blocked" in result["error"]
         assert result["stdout"] == ""
@@ -461,19 +461,19 @@ class TestMCPTools:
     
     @pytest.mark.asyncio
     async def test_execute_powershell_tool_invalid_directory(self):
-        """Test the actual execute_powershell MCP tool with invalid directory."""
-        from execbox.mcp_server import execute_powershell
+        """Test the actual execute_powershell MCP tool implementation with invalid directory."""
+        from execbox.mcp_server import execute_powershell_impl
         
         # Test with nonexistent directory
-        result = await execute_powershell("Get-Date", "/nonexistent/path")
+        result = await execute_powershell_impl("Get-Date", "/nonexistent/path")
         assert result["success"] is False
         assert "Directory does not exist" in result["error"]
     
     @pytest.mark.asyncio
     @patch('asyncio.create_subprocess_exec')
     async def test_execute_powershell_tool_successful_execution(self, mock_subprocess):
-        """Test the actual execute_powershell MCP tool with successful execution."""
-        from execbox.mcp_server import execute_powershell
+        """Test the actual execute_powershell MCP tool implementation with successful execution."""
+        from execbox.mcp_server import execute_powershell_impl
         
         # Mock successful process
         mock_process = Mock()
@@ -483,7 +483,7 @@ class TestMCPTools:
         ))
         mock_subprocess.return_value = mock_process
         
-        result = await execute_powershell("Get-Date")
+        result = await execute_powershell_impl("Get-Date")
         assert result["success"] is True
         assert result["return_code"] == 0
         assert result["stdout"] == "Mock successful output"
@@ -492,7 +492,7 @@ class TestMCPTools:
     
     @pytest.mark.asyncio
     async def test_mcp_tools_with_custom_config(self):
-        """Test MCP tools with a custom configuration."""
+        """Test MCP tool implementations with a custom configuration."""
         # Create a custom config file
         custom_config = {
             "allowed_commands": ["Get-Date", "Get-Host"],
@@ -507,23 +507,23 @@ class TestMCPTools:
             json.dump(custom_config, f)
         
         # Create MCP server with custom config
-        from execbox.mcp_server import create_mcp_server, list_allowed_commands, get_security_config, validate_command
+        from execbox.mcp_server import create_mcp_server, list_allowed_commands_impl, get_security_config_impl, validate_command_impl
         create_mcp_server(custom_config_path)
         
         # Test that the custom config is being used
-        commands = await list_allowed_commands()
+        commands = await list_allowed_commands_impl()
         assert commands == ["Get-Date", "Get-Host"]
         
-        config_info = await get_security_config()
+        config_info = await get_security_config_impl()
         assert config_info["max_command_length"] == 100
         assert config_info["timeout_seconds"] == 15
         assert config_info["allowed_commands_count"] == 2
         
         # Test validation with custom config
-        result = await validate_command("Get-ChildItem")
+        result = await validate_command_impl("Get-ChildItem")
         assert result["is_allowed"] is False  # Not in custom allowed list
         
-        result = await validate_command("Get-Date")
+        result = await validate_command_impl("Get-Date")
         assert result["is_allowed"] is True  # In custom allowed list
 
 
