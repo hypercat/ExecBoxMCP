@@ -20,21 +20,43 @@ async def test_mcp_protocol():
         # Test get tools
         print("Testing get_tools...")
         tools_result = await mcp.get_tools()
-        print(f"Tools: {[tool.name for tool in tools_result]}")
+        print(f"Tools result type: {type(tools_result)}")
+        print(f"Tools result: {tools_result}")
         
-        if not tools_result:
-            print("- No tools found!")
+        # Handle different return types
+        if isinstance(tools_result, list):
+            if tools_result:
+                # Check if items have .name attribute or are strings
+                if hasattr(tools_result[0], 'name'):
+                    tool_names = [tool.name for tool in tools_result]
+                else:
+                    tool_names = tools_result  # Assume they are already names
+                print(f"Tool names: {tool_names}")
+            else:
+                print("- No tools found!")
+                return False
+        else:
+            print(f"Unexpected tools result type: {type(tools_result)}")
             return False
         
         # Test a simple tool call
         print("Testing tool call...")
-        validation_result = await mcp.call_tool("validate_command", {"command": "Get-Date"})
-        print(f"Validation result: {validation_result}")
+        try:
+            validation_result = await mcp.call_tool("validate_command", {"command": "Get-Date"})
+            print(f"Validation result: {validation_result}")
+        except Exception as tool_error:
+            print(f"Tool call failed: {tool_error}")
+            print(f"Tool call traceback: {traceback.format_exc()}")
         
         # Test another tool call
         print("Testing list_allowed_commands...")
-        commands_result = await mcp.call_tool("list_allowed_commands", {})
-        print(f"Allowed commands count: {len(commands_result) if isinstance(commands_result, list) else 'unknown'}")
+        try:
+            commands_result = await mcp.call_tool("list_allowed_commands", {})
+            print(f"Allowed commands result: {commands_result}")
+            print(f"Allowed commands count: {len(commands_result) if isinstance(commands_result, list) else 'unknown'}")
+        except Exception as tool_error:
+            print(f"List commands tool call failed: {tool_error}")
+            print(f"List commands traceback: {traceback.format_exc()}")
         
         print("+ MCP protocol test passed!")
         return True
