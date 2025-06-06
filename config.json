@@ -1,7 +1,7 @@
 {
   "allowed_commands": [
     "Get-ChildItem",
-    "Get-Item", 
+    "Get-Item",
     "Get-Content",
     "Get-Location",
     "Set-Location",
@@ -15,24 +15,19 @@
     "Select-Object",
     "Where-Object",
     "Sort-Object",
-    "Measure-Object",
-    "Format-Table",
-    "Format-List",
-    "Get-Help",
-    "Get-Command",
-    "Get-Member"
+    "Measure-Object"
   ],
   "allowed_directories": [
     "C:\\Users\\Public",
     "C:\\temp",
-    "C:\\Windows\\System32",
-    "C:\\Program Files\\Common Files",
-    "D:\\workspace"
+    "C:\\Windows\\System32"
   ],
   "blocked_patterns": [
     "[;&|`]",
     "Invoke-Expression",
-    "Invoke-Command", 
+    "Invoke-Command",
+    "Invoke-WebRequest",
+    "Invoke-RestMethod",
     "iex\\s",
     "icm\\s",
     "Start-Process",
@@ -43,19 +38,10 @@
     "rmdir\\s",
     "\\.ps1",
     "\\.bat",
-    "\\.cmd", 
+    "\\.cmd",
     "\\.exe",
     "powershell\\.exe",
-    "cmd\\.exe",
-    "wget",
-    "curl",
-    "Invoke-WebRequest",
-    "Invoke-RestMethod",
-    "New-Object\\s+System\\.Net",
-    "DownloadString",
-    "DownloadFile",
-    ">>",
-    "Out-File"
+    "cmd\\.exe"
   ],
   "max_command_length": 200,
   "timeout_seconds": 30
