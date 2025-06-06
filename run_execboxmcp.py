@@ -84,8 +84,11 @@ def main():
     try:
         # Run the server with proper stdio handling
         # Use subprocess.Popen to allow stdio passthrough
+        print(f"Starting subprocess with command: {cmd}", file=sys.stderr)
         process = subprocess.Popen(cmd, cwd=script_dir)
+        print(f"Subprocess started with PID: {process.pid}", file=sys.stderr)
         result = process.wait()
+        print(f"Subprocess finished with return code: {result}", file=sys.stderr)
         sys.exit(result)
     except KeyboardInterrupt:
         print("\nServer stopped by user", file=sys.stderr)

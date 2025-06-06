@@ -35,17 +35,19 @@ async def test_fast_agent_connection():
         
         print("Server process started via runner...")
         
-        # Give the server a moment to start up
-        await asyncio.sleep(2)
+        # Give the server a moment to start up and check for early exit
+        for i in range(10):  # Check for 10 seconds
+            await asyncio.sleep(1)
+            if process.returncode is not None:
+                print(f"Server process exited early with code: {process.returncode}")
+                stderr_data = await process.stderr.read()
+                if stderr_data:
+                    stderr_str = stderr_data.decode()
+                    print(f"Server stderr: {stderr_str}")
+                return False
+            print(f"Server still starting... ({i+1}/10)")
         
-        # Check if process is still running
-        if process.returncode is not None:
-            print(f"Server process exited early with code: {process.returncode}")
-            stderr_data = await process.stderr.read()
-            if stderr_data:
-                stderr_str = stderr_data.decode()
-                print(f"Server stderr: {stderr_str}")
-            return False
+        print("Server startup wait completed")
         
         # Send initialize message
         init_message = {
@@ -75,6 +77,7 @@ async def test_fast_agent_connection():
         
         # Wait for response
         try:
+            print("Waiting for initialize response...")
             stdout_data = await asyncio.wait_for(
                 process.stdout.readline(),
                 timeout=15.0
