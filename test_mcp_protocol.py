@@ -46,24 +46,28 @@ async def test_mcp_protocol():
             print(f"Unexpected tools result type: {type(tools_result)}")
             return False
         
-        # Test a simple tool call
-        print("Testing tool call...")
+        # Test the tools directly (since FastMCP doesn't have call_tool method)
+        print("Testing validate_command tool directly...")
         try:
-            validation_result = await mcp.call_tool("validate_command", {"command": "Get-Date"})
+            from src.execbox.mcp_server import validate_powershell_command
+            validation_result = await validate_powershell_command("Get-Date")
             print(f"Validation result: {validation_result}")
         except Exception as tool_error:
-            print(f"Tool call failed: {tool_error}")
+            print(f"Direct tool call failed: {tool_error}")
             print(f"Tool call traceback: {traceback.format_exc()}")
+            return False
         
-        # Test another tool call
-        print("Testing list_allowed_commands...")
+        # Test another tool directly
+        print("Testing list_allowed_commands tool directly...")
         try:
-            commands_result = await mcp.call_tool("list_allowed_commands", {})
+            from src.execbox.mcp_server import get_allowed_commands
+            commands_result = await get_allowed_commands()
             print(f"Allowed commands result: {commands_result}")
             print(f"Allowed commands count: {len(commands_result) if isinstance(commands_result, list) else 'unknown'}")
         except Exception as tool_error:
-            print(f"List commands tool call failed: {tool_error}")
-            print(f"List commands traceback: {traceback.format_exc()}")
+            print(f"Direct tool call failed: {tool_error}")
+            print(f"Tool call traceback: {traceback.format_exc()}")
+            return False
         
         print("+ MCP protocol test passed!")
         return True
