@@ -320,22 +320,25 @@ class PowerShellExecutor:
                     }
             
             # Prepare PowerShell command
+            # Use Bypass for external commands but still prevent script execution via our validation
             ps_command = [
                 "powershell.exe",
                 "-NoProfile",
                 "-NonInteractive",
-                "-ExecutionPolicy", "Restricted",  # Prevent script execution
+                "-ExecutionPolicy", "Bypass",  # Allow external commands to run
                 "-Command", command
             ]
             
             logger.debug(f"Executing PowerShell with args: {ps_command}")
             
             # Execute command with timeout
+            # Ensure environment variables (including PATH) are inherited
             process = await asyncio.create_subprocess_exec(
                 *ps_command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=working_directory
+                cwd=working_directory,
+                env=os.environ.copy()  # Inherit the full environment including PATH
             )
             
             stdout, stderr = await asyncio.wait_for(
