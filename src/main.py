@@ -72,6 +72,18 @@ def main():
         sys.stdout.flush()
         sys.stderr.flush()
         
+        # Add some MCP-specific debugging
+        print("MCP server info:")
+        print(f"  Server name: {mcp.name}")
+        print(f"  Available tools: {len(mcp.get_tools()) if hasattr(mcp, 'get_tools') else 'unknown'}")
+        
+        # Check if we're running in stdio mode (which is what MCP clients expect)
+        if hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty():
+            print("Running in stdio mode (non-interactive)")
+        else:
+            print("Running in interactive mode")
+        
+        print("Starting MCP server run loop...")
         mcp.run()
         
     except KeyboardInterrupt:
