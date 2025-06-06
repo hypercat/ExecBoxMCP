@@ -217,8 +217,9 @@ class PowerShellExecutor:
                 "stderr": ""
             }
 
-config = PowerShellConfig()
-executor = PowerShellExecutor(config)
+# Global variables will be initialized by create_mcp_server()
+config = None
+executor = None
 
 # Business logic functions (testable)
 async def execute_powershell_impl(command: str, working_directory: Optional[str] = None) -> Dict[str, Any]:
@@ -341,3 +342,20 @@ async def validate_command(command: str) -> Dict[str, Any]:
         Validation result with details
     """
     return await validate_command_impl(command)
+
+def create_mcp_server(config_path: str = "config.json") -> FastMCP:
+    """
+    Create and configure the MCP server with the specified config file.
+    
+    Args:
+        config_path: Path to the configuration JSON file
+        
+    Returns:
+        Configured FastMCP server instance
+    """
+    global config, executor
+    
+    config = PowerShellConfig(config_path)
+    executor = PowerShellExecutor(config)
+    
+    return mcp
