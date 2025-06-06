@@ -3,9 +3,28 @@ name = "ExecBoxMCP"
 version = "0.1.0"
 description = "Simple MCP server for command execution on Windows via Powershell. Supports restricting commands and working directories."
 readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "ExecBoxMCP Contributors"}
+]
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=2.7.0",
+]
+keywords = ["mcp", "powershell", "security", "command-execution"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
 ]
 
 [tool.setuptools]
