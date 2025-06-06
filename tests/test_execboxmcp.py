@@ -11,10 +11,12 @@ import tempfile
 import pytest
 import pytest_asyncio
 import shutil
+import sys
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 
-from execbox.mcp_server import PowerShellConfig, PowerShellExecutor
+from execbox.mcp_server import PowerShellConfig, PowerShellExecutor, create_mcp_server
+from src.main import main
 
 
 class TestPowerShellConfig:
@@ -491,6 +493,212 @@ class TestEdgeCases:
         is_allowed, reason = self.config.is_command_allowed(long_command)
         assert is_allowed is False
         assert "exceeds maximum length" in reason
+
+
+class TestArgumentParsing:
+    """Test the argument parsing functionality in main.py."""
+    
+    @patch('src.main.create_mcp_server')
+    @patch('sys.argv', ['main.py'])
+    def test_default_config_path(self, mock_create_mcp_server):
+        """Test that default config.json is used when no arguments provided."""
+        mock_mcp = Mock()
+        mock_create_mcp_server.return_value = mock_mcp
+        
+        try:
+            main()
+        except SystemExit:
+            pass  # main() calls mcp.run() which might exit
+        
+        mock_create_mcp_server.assert_called_once_with("config.json")
+    
+    @patch('src.main.create_mcp_server')
+    @patch('sys.argv', ['main.py', '--config', 'custom_config.json'])
+    def test_custom_config_path_long_arg(self, mock_create_mcp_server):
+        """Test custom config path with --config argument."""
+        mock_mcp = Mock()
+        mock_create_mcp_server.return_value = mock_mcp
+        
+        try:
+            main()
+        except SystemExit:
+            pass
+        
+        mock_create_mcp_server.assert_called_once_with("custom_config.json")
+    
+    @patch('src.main.create_mcp_server')
+    @patch('sys.argv', ['main.py', '-c', 'another_config.json'])
+    def test_custom_config_path_short_arg(self, mock_create_mcp_server):
+        """Test custom config path with -c argument."""
+        mock_mcp = Mock()
+        mock_create_mcp_server.return_value = mock_mcp
+        
+        try:
+            main()
+        except SystemExit:
+            pass
+        
+        mock_create_mcp_server.assert_called_once_with("another_config.json")
+    
+    @patch('sys.argv', ['main.py', '--help'])
+    def test_help_argument(self):
+        """Test that help argument works."""
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        
+        # argparse exits with code 0 for help
+        assert exc_info.value.code == 0
+
+
+class TestMCPServerCreation:
+    """Test the create_mcp_server function."""
+    
+    def setup_method(self):
+        """Setup method called before each test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.temp_dir, "test_config.json")
+    
+    def teardown_method(self):
+        """Cleanup after each test."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    def test_create_mcp_server_default_config(self):
+        """Test creating MCP server with default config path."""
+        mcp_server = create_mcp_server(self.config_path)
+        
+        # Verify that the server was created
+        assert mcp_server is not None
+        
+        # Verify that global config and executor were initialized
+        from execbox.mcp_server import config, executor
+        assert config is not None
+        assert executor is not None
+        assert isinstance(config, PowerShellConfig)
+        assert isinstance(executor, PowerShellExecutor)
+    
+    def test_create_mcp_server_custom_config(self):
+        """Test creating MCP server with custom config."""
+        # Create a custom config file
+        custom_config = {
+            "allowed_commands": ["Get-Date", "Get-Host"],
+            "allowed_directories": ["C:\\test"],
+            "blocked_patterns": ["test_pattern"],
+            "max_command_length": 100,
+            "timeout_seconds": 15
+        }
+        
+        with open(self.config_path, 'w') as f:
+            json.dump(custom_config, f)
+        
+        mcp_server = create_mcp_server(self.config_path)
+        
+        # Verify that the custom config was loaded
+        from execbox.mcp_server import config
+        assert config.config["allowed_commands"] == ["Get-Date", "Get-Host"]
+        assert config.config["max_command_length"] == 100
+        assert config.config["timeout_seconds"] == 15
+    
+    def test_create_mcp_server_nonexistent_config(self):
+        """Test creating MCP server with nonexistent config file."""
+        nonexistent_path = os.path.join(self.temp_dir, "nonexistent.json")
+        
+        mcp_server = create_mcp_server(nonexistent_path)
+        
+        # Should create server with default config and create the config file
+        assert mcp_server is not None
+        assert os.path.exists(nonexistent_path)
+        
+        # Verify default config was used
+        from execbox.mcp_server import config
+        assert "Get-ChildItem" in config.config["allowed_commands"]
+        assert config.config["max_command_length"] == 200
+    
+    def test_create_mcp_server_multiple_calls(self):
+        """Test that multiple calls to create_mcp_server work correctly."""
+        # First call
+        mcp_server1 = create_mcp_server(self.config_path)
+        from execbox.mcp_server import config as config1, executor as executor1
+        
+        # Create a different config file
+        config_path2 = os.path.join(self.temp_dir, "test_config2.json")
+        custom_config = {
+            "allowed_commands": ["Get-Date"],
+            "max_command_length": 50
+        }
+        with open(config_path2, 'w') as f:
+            json.dump(custom_config, f)
+        
+        # Second call with different config
+        mcp_server2 = create_mcp_server(config_path2)
+        from execbox.mcp_server import config as config2, executor as executor2
+        
+        # Verify that the global variables were updated
+        assert config2.config["max_command_length"] == 50
+        assert len(config2.config["allowed_commands"]) == 1
+
+
+class TestConfigPathIntegration:
+    """Test integration between argument parsing and config loading."""
+    
+    def setup_method(self):
+        """Setup method called before each test."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.config_path = os.path.join(self.temp_dir, "integration_config.json")
+        
+        # Create a test config file
+        test_config = {
+            "allowed_commands": ["Get-Date", "Get-Location"],
+            "allowed_directories": ["C:\\integration_test"],
+            "max_command_length": 150,
+            "timeout_seconds": 20
+        }
+        
+        with open(self.config_path, 'w') as f:
+            json.dump(test_config, f)
+    
+    def teardown_method(self):
+        """Cleanup after each test."""
+        if os.path.exists(self.temp_dir):
+            shutil.rmtree(self.temp_dir, ignore_errors=True)
+    
+    @patch('src.main.create_mcp_server')
+    @patch('sys.argv')
+    def test_end_to_end_config_loading(self, mock_argv, mock_create_mcp_server):
+        """Test end-to-end config loading from command line to server creation."""
+        mock_argv.__getitem__.side_effect = lambda x: ['main.py', '--config', self.config_path][x]
+        mock_argv.__len__.return_value = 3
+        
+        mock_mcp = Mock()
+        mock_create_mcp_server.return_value = mock_mcp
+        
+        try:
+            main()
+        except SystemExit:
+            pass
+        
+        # Verify that create_mcp_server was called with the correct config path
+        mock_create_mcp_server.assert_called_once_with(self.config_path)
+    
+    def test_actual_config_loading_integration(self):
+        """Test actual config loading without mocking."""
+        # This tests the real integration without mocks
+        mcp_server = create_mcp_server(self.config_path)
+        
+        from execbox.mcp_server import config
+        
+        # Verify the custom config was loaded correctly
+        assert config.config["allowed_commands"] == ["Get-Date", "Get-Location"]
+        assert config.config["allowed_directories"] == ["C:\\integration_test"]
+        assert config.config["max_command_length"] == 150
+        assert config.config["timeout_seconds"] == 20
+        
+        # Test that the config actually works
+        is_allowed, reason = config.is_command_allowed("Get-Date")
+        assert is_allowed is True
+        
+        is_allowed, reason = config.is_command_allowed("Get-ChildItem")
+        assert is_allowed is False  # Not in our custom allowed list
 
 
 if __name__ == "__main__":
