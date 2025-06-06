@@ -1,7 +1,18 @@
 [project]
-name = "win-ps-mcp"
+name = "ExecBoxMCP"
 version = "0.1.0"
-description = "Add your description here"
+description = "Simple MCP server for command execution on Windows via Powershell. Supports restricting commands and working directories."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastmcp>=2.7.0",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
