@@ -210,7 +210,6 @@ class PowerShellExecutor:
                     "stderr": ""
                 }
             
-            # Validate working directory
             if working_directory:
                 if not os.path.exists(working_directory):
                     error_msg = f"Directory does not exist: {working_directory}"
@@ -233,8 +232,11 @@ class PowerShellExecutor:
                     }
             
             env = os.environ.copy()
-            # Optionally extend PATH here in Python if needed
-            # env["PATH"] += os.pathsep + r"C:\Program Files\Git\bin"
+            logger.debug("Effective PATH: %s", env.get("PATH"))
+            logger.debug("ENV: %s", env)
+
+            # PATHEXT could get stripped down, so we fix it and set it to the default
+            env["PATHEXT"] = ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC"
 
             ps_command = [
                 "powershell.exe",
