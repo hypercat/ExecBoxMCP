@@ -319,14 +319,16 @@ class PowerShellExecutor:
                         "stderr": ""
                     }
             
-            # Prepare PowerShell command
-            # Use a simpler approach that refreshes the environment and executes the command directly
+            env = os.environ.copy()
+            # Optionally extend PATH here in Python if needed
+            # env["PATH"] += os.pathsep + r"C:\Program Files\Git\bin"
+
             ps_command = [
                 "powershell.exe",
                 "-NoProfile",
                 "-NonInteractive",
-                "-ExecutionPolicy", "Bypass",  # Allow external commands to run
-                "-Command", f"$env:PATH = [System.Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + [System.Environment]::GetEnvironmentVariable('PATH', 'User'); {command}"
+                "-ExecutionPolicy", "Bypass",
+                "-Command", command
             ]
             
             logger.debug(f"Executing PowerShell with args: {ps_command}")
@@ -339,7 +341,7 @@ class PowerShellExecutor:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=working_directory,
-                env=os.environ.copy()  # Inherit the full environment including PATH
+                env=env
             )
             
             stdout, stderr = await asyncio.wait_for(
