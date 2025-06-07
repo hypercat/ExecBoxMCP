@@ -17,100 +17,11 @@ from typing import Any, Dict, List, Optional
 
 from fastmcp import FastMCP
 
-# Set up logging with rotation
-def setup_logging(enable_file_logging: bool = False):
-    """Set up logging with optional file rotation."""
-    # Check if we're in stdio mode to suppress debug prints
-    _is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
-    
-    try:
-        if not _is_stdio_mode:
-            print("Setting up logging system...")
-        
-        logger = logging.getLogger("execbox")
-        
-        # Clear any existing handlers to avoid duplicates
-        logger.handlers.clear()
-        
-        logger.setLevel(logging.INFO)
-        
-        # Only create file handler if file logging is enabled
-        if enable_file_logging:
-            # Create logs directory if it doesn't exist
-            os.makedirs("logs", exist_ok=True)
-            if not _is_stdio_mode:
-                print("+ Logs directory created/verified")
-            
-            # File handler with rotation (1MB max, keep 5 files)
-            file_handler = logging.handlers.RotatingFileHandler(
-                "logs/execbox.log",
-                maxBytes=1024*1024,  # 1MB
-                backupCount=5
-            )
-            file_handler.setLevel(logging.INFO)
-            if not _is_stdio_mode:
-                print("+ File handler created")
-            
-            # Formatter
-            formatter = logging.Formatter(
-                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-            )
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-            
-            if not _is_stdio_mode:
-                print("+ File logging enabled")
-        else:
-            if not _is_stdio_mode:
-                print("+ File logging disabled")
-        
-        # Console handler for immediate feedback (lower threshold for debugging)
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        if not _is_stdio_mode:
-            print("+ Console handler created")
-        
-        # Formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-        
-        if not _is_stdio_mode:
-            print("+ Handlers added to logger")
-        
-        # Test log to ensure it's working
-        logger.info("Logging system initialized successfully")
-        if not _is_stdio_mode:
-            print("+ Test log written successfully")
-        
-        return logger
-    except Exception as e:
-        # Fallback to basic logging if setup fails
-        if not _is_stdio_mode:
-            print(f"Warning: Failed to setup logging: {e}")
-            print(f"Logging setup traceback: {traceback.format_exc()}")
-        basic_logger = logging.getLogger("execbox")
-        basic_logger.setLevel(logging.INFO)
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
-        basic_logger.addHandler(handler)
-        return basic_logger
-
-# Initialize logging later when we have the proper parameters
-# Note: We'll suppress these prints in stdio mode
-import sys
-_is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
-
-# Initialize a basic logger that will be reconfigured later
+# Get the logger that was set up in main.py
 logger = logging.getLogger("execbox")
-logger.setLevel(logging.INFO)
-if not logger.handlers:
-    # Add a basic console handler for early messages
-    handler = logging.StreamHandler()
-    handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
-    logger.addHandler(handler)
+
+# Check if we're in stdio mode to suppress debug prints
+_is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
 
 if not _is_stdio_mode:
     print("Creating FastMCP instance...")
@@ -121,10 +32,9 @@ if not _is_stdio_mode:
 class PowerShellConfig:
     """Configuration manager for PowerShell execution restrictions."""
     
-    def __init__(self, config_path: str = "config.json", is_stdio_mode: bool = False, enable_file_logging: bool = False):
+    def __init__(self, config_path: str = "config.json", is_stdio_mode: bool = False):
         self.config_path = config_path
         self.is_stdio_mode = is_stdio_mode
-        self.enable_file_logging = enable_file_logging
         self.config = self._load_config()
     
     def _load_config(self) -> Dict[str, Any]:
@@ -569,19 +479,18 @@ async def validate_command(command: str) -> Dict[str, Any]:
         logger.error(f"Exception traceback: {traceback.format_exc()}")
         raise
 
-def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = False, enable_file_logging: bool = False) -> FastMCP:
+def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = False) -> FastMCP:
     """
     Create and configure the MCP server with the specified config file.
     
     Args:
         config_path: Path to the configuration JSON file
         is_stdio_mode: Whether running in stdio mode (affects debug output)
-        enable_file_logging: Whether to enable file logging
         
     Returns:
         Configured FastMCP server instance
     """
-    global config, executor, logger
+    global config, executor
     
     # Function to print debug info (to stderr in stdio mode, stdout otherwise)
     def debug_print(*args, **kwargs):
@@ -592,15 +501,11 @@ def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = Fa
     
     debug_print(f"create_mcp_server called with config_path: {config_path}")
     
-    # Configure logging with the proper file logging setting
-    debug_print("Configuring logging...")
-    logger = setup_logging(enable_file_logging=enable_file_logging)
-    
     try:
         logger.info(f"Creating MCP server with config: {config_path}")
         debug_print(f"Creating PowerShellConfig with path: {config_path}")
         
-        config = PowerShellConfig(config_path, is_stdio_mode, enable_file_logging)
+        config = PowerShellConfig(config_path, is_stdio_mode)
         debug_print("PowerShellConfig created successfully")
         
         executor = PowerShellExecutor(config)

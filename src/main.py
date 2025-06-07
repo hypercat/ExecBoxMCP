@@ -1,8 +1,86 @@
 import argparse
 import logging
+import logging.handlers
 import sys
 import traceback
 import os
+
+def setup_logging(enable_file_logging: bool = False, log_level: str = "INFO", is_stdio_mode: bool = False):
+    """Set up logging with optional file rotation."""
+    try:
+        if not is_stdio_mode:
+            print("Setting up logging system...")
+        
+        logger = logging.getLogger("execbox")
+        
+        # Clear any existing handlers to avoid duplicates
+        logger.handlers.clear()
+        
+        logger.setLevel(getattr(logging, log_level))
+        
+        # Only create file handler if file logging is enabled
+        if enable_file_logging:
+            # Create logs directory if it doesn't exist
+            os.makedirs("logs", exist_ok=True)
+            if not is_stdio_mode:
+                print("+ Logs directory created/verified")
+            
+            # File handler with rotation (1MB max, keep 5 files)
+            file_handler = logging.handlers.RotatingFileHandler(
+                "logs/execbox.log",
+                maxBytes=1024*1024,  # 1MB
+                backupCount=5
+            )
+            file_handler.setLevel(getattr(logging, log_level))
+            if not is_stdio_mode:
+                print("+ File handler created")
+            
+            # Formatter
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+            )
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            
+            if not is_stdio_mode:
+                print("+ File logging enabled")
+        else:
+            if not is_stdio_mode:
+                print("+ File logging disabled")
+        
+        # Console handler for immediate feedback
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(getattr(logging, log_level))
+        if not is_stdio_mode:
+            print("+ Console handler created")
+        
+        # Formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        
+        if not is_stdio_mode:
+            print("+ Handlers added to logger")
+        
+        # Test log to ensure it's working
+        logger.info("Logging system initialized successfully")
+        if not is_stdio_mode:
+            print("+ Test log written successfully")
+        
+        return logger
+    except Exception as e:
+        # Fallback to basic logging if setup fails
+        if not is_stdio_mode:
+            print(f"Warning: Failed to setup logging: {e}")
+            print(f"Logging setup traceback: {traceback.format_exc()}")
+        basic_logger = logging.getLogger("execbox")
+        basic_logger.setLevel(getattr(logging, log_level))
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+        basic_logger.addHandler(handler)
+        return basic_logger
 
 def main():
     # Check if we're running in stdio mode (which is what MCP clients expect)
@@ -42,10 +120,6 @@ def main():
         sys.exit(1)
     
     try:
-        # Import our module after basic imports are verified
-        from execbox.mcp_server import create_mcp_server
-        debug_print("+ execbox.mcp_server imported")
-        
         parser = argparse.ArgumentParser(description="ExecBox MCP Server - Secure PowerShell command execution")
         parser.add_argument(
             "--config", 
@@ -66,18 +140,25 @@ def main():
         )
         
         args = parser.parse_args()
-        debug_print(f"Parsed arguments: config={args.config}, log_level={args.log_level}")
+        debug_print(f"Parsed arguments: config={args.config}, log_level={args.log_level}, enable_file_logging={args.enable_file_logging}")
         
-        # Set log level for the execbox logger
-        logger = logging.getLogger("execbox")
-        logger.setLevel(getattr(logging, args.log_level))
+        # Set up logging properly here in main
+        logger = setup_logging(
+            enable_file_logging=args.enable_file_logging,
+            log_level=args.log_level,
+            is_stdio_mode=is_stdio_mode
+        )
         
         debug_print(f"Logger configured with level: {args.log_level}")
+        
+        # Import our module after logging is set up
+        from execbox.mcp_server import create_mcp_server
+        debug_print("+ execbox.mcp_server imported")
         
         logger.info(f"Starting ExecBox MCP Server with config: {args.config}")
         debug_print(f"Creating MCP server with config: {args.config}")
         
-        mcp = create_mcp_server(args.config, is_stdio_mode, args.enable_file_logging)
+        mcp = create_mcp_server(args.config, is_stdio_mode)
         debug_print("MCP server created successfully")
         
         logger.info("MCP Server starting...")
