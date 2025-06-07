@@ -98,16 +98,19 @@ def setup_logging(enable_file_logging: bool = False):
         basic_logger.addHandler(handler)
         return basic_logger
 
-# Initialize logging early - will be reconfigured later with proper settings
+# Initialize logging later when we have the proper parameters
 # Note: We'll suppress these prints in stdio mode
 import sys
 _is_stdio_mode = hasattr(sys.stdin, 'isatty') and not sys.stdin.isatty()
 
-if not _is_stdio_mode:
-    print("Initializing logging system...")
-logger = setup_logging(enable_file_logging=False)  # Default to no file logging initially
-if not _is_stdio_mode:
-    print("+ Logging system ready")
+# Initialize a basic logger that will be reconfigured later
+logger = logging.getLogger("execbox")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    # Add a basic console handler for early messages
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+    logger.addHandler(handler)
 
 if not _is_stdio_mode:
     print("Creating FastMCP instance...")
@@ -589,10 +592,9 @@ def create_mcp_server(config_path: str = "config.json", is_stdio_mode: bool = Fa
     
     debug_print(f"create_mcp_server called with config_path: {config_path}")
     
-    # Reconfigure logging with the proper file logging setting
-    if enable_file_logging:
-        debug_print("Reconfiguring logging with file logging enabled...")
-        logger = setup_logging(enable_file_logging=True)
+    # Configure logging with the proper file logging setting
+    debug_print("Configuring logging...")
+    logger = setup_logging(enable_file_logging=enable_file_logging)
     
     try:
         logger.info(f"Creating MCP server with config: {config_path}")
